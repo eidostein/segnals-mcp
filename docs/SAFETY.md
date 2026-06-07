@@ -36,6 +36,14 @@
 
 ---
 
+## Blast-Radius Statement
+
+> [!WARNING]
+> **Blast-Radius Boundaries:**
+> Worst-case key compromise allows an attacker to read the compromised user's statistics, and create/update/control/delete **only that user's own bots**. It **cannot** be used to withdraw/move funds, read exchange API secrets or MT5 passwords, modify email/password, affect other tenants, or perform administrative operations. Damage is bounded and fully recoverable by revoking the key in the dashboard.
+
+---
+
 ## Confirmation Gates ✋
 
 All destructive or high-impact operations use a **two-step confirmation pattern**:

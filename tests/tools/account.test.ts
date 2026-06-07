@@ -38,7 +38,7 @@ describe("Account tools", () => {
   });
 
   describe("segnals_get_account", () => {
-    it("calls GET /auth/me and returns account details", async () => {
+    it("calls GET /user/me and returns account details", async () => {
       const mockFetch = vi.fn().mockResolvedValue(
         new Response(
           JSON.stringify({
@@ -59,7 +59,7 @@ describe("Account tools", () => {
 
       expect(data.username).toBe("testuser");
       expect(data.tier).toBe("gold");
-      expect(mockFetch.mock.calls[0][0]).toContain("/auth/me");
+      expect(mockFetch.mock.calls[0][0]).toContain("/user/me");
     });
   });
 

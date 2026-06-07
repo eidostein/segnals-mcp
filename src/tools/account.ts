@@ -18,7 +18,7 @@ export function registerAccountTools(server: McpServer, client: SegnalsClient): 
     {},
     async () => {
       try {
-        const profile = await client.get<UserProfile>("/auth/me");
+        const profile = await client.get<UserProfile>("/user/me");
         return ok({
           username: profile.username,
           tier: profile.tier,
