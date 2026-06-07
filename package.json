@@ -1,0 +1,70 @@
+{
+  "name": "@segnals/mcp",
+  "version": "0.1.0",
+  "description": "Segnals MCP Server — manage your algorithmic trading bots, strategies, and portfolio via AI agents",
+  "author": "Segnals <support@segnals.com>",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "segnals-mcp": "dist/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "lint": "eslint src/ tests/",
+    "format": "prettier --write 'src/**/*.ts' 'tests/**/*.ts'",
+    "format:check": "prettier --check 'src/**/*.ts' 'tests/**/*.ts'",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "smoke": "node --import tsx scripts/smoke-test.ts",
+    "audit:prod": "npm audit --production",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.25.30"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.28.0",
+    "@types/node": "^20.17.57",
+    "eslint": "^9.28.0",
+    "prettier": "^3.5.3",
+    "tsx": "^4.22.4",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.34.0",
+    "vitest": "^3.2.1"
+  },
+  "files": [
+    "dist/",
+    "docs/",
+    "AGENTS.md",
+    "README.md",
+    "LICENSE",
+    "llms.txt"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "segnals",
+    "trading",
+    "algorithmic-trading",
+    "ai-agent"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eidostein/segnals-mcp.git"
+  },
+  "homepage": "https://github.com/eidostein/segnals-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/eidostein/segnals-mcp/issues"
+  }
+}

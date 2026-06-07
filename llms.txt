@@ -1,0 +1,14 @@
+# Segnals MCP Server
+> Manage algorithmic trading bots, strategies, and portfolio via AI agents.
+
+## Documentation
+
+- [AGENTS.md](AGENTS.md): Agent playbook — the complete guide for AI agents to onboard users and operate their trading account
+- [README.md](README.md): Project overview, quickstart, security stance, and configuration
+- [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md): Step-by-step onboarding guide
+- [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md): API keys, scopes, rotation, and security
+- [docs/TOOLS.md](docs/TOOLS.md): Complete reference for all 36 tools with examples
+- [docs/SAFETY.md](docs/SAFETY.md): What the MCP can and cannot do, risk disclaimers
+- [docs/CONFIGURATION.md](docs/CONFIGURATION.md): Per-client setup (Claude Desktop, Code, Cursor, Docker)
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md): Common errors and fixes
+- [docs/CHANGELOG.md](docs/CHANGELOG.md): Version history
