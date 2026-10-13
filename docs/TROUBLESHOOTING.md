@@ -24,7 +24,9 @@ The API key was rejected by the server.
 - Key was revoked or rotated
 - Key has expired (if an expiry was set)
 - Key was copied incorrectly (missing characters)
-- Using a `sk_test_` key against production (or vice versa)
+- Key was created on one server and used against another: a key from segnals.com does
+  not work on staging, and a staging key does not work on segnals.com (see
+  [Staging](#staging))
 
 **Fix:**
 1. Go to [segnals.com](https://segnals.com) → Settings → API Keys
@@ -83,7 +85,7 @@ Network connectivity issue.
 The key doesn't match the expected format.
 
 **Fix:**
-- Keys must start with `sk_live_` (production) or `sk_test_` (testing)
+- Keys must start with `sk_live_` or `sk_test_` (the mode picked when the key was created)
 - Ensure you copied the full key (minimum 20 characters)
 - Generate a new key if needed
 
@@ -96,12 +98,17 @@ If the MCP server doesn't appear in your AI client's tool list:
 ### Claude Desktop
 1. Ensure `claude_desktop_config.json` has valid JSON (no trailing commas)
 2. Restart Claude Desktop completely (quit + relaunch)
-3. Check that `npx` is available in your PATH
-4. Try running `npx @segnals/mcp` in a terminal to verify it works standalone
+3. Check that the configured command is available in your PATH: `docker` for the GHCR
+   image (Docker must be running), or `node` for a build from source
+4. Run the same command in a terminal with `SEGNALS_API_KEY` exported:
+   `docker run --rm -i -e SEGNALS_API_KEY ghcr.io/eidostein/segnals-mcp:latest`, or
+   `node /absolute/path/to/segnals-mcp/dist/index.js` after `npm ci && npm run build`.
+   A healthy start prints nothing and waits for a client; a key problem prints an error
+   and exits
 
 ### Claude Code
 1. Verify with `claude mcp list` — the server should appear
-2. If not, re-add: `claude mcp add segnals -- npx -y @segnals/mcp`
+2. If not, re-add: `claude mcp add segnals -- docker run --rm -i -e SEGNALS_API_KEY ghcr.io/eidostein/segnals-mcp:latest`
 3. Ensure `SEGNALS_API_KEY` is exported in the same shell
 
 ### Cursor
@@ -128,19 +135,23 @@ If a bot stays in `starting` or `warming_up` for more than 2 minutes:
 
 ---
 
-## Test Mode / Staging
+## Staging
 
-If you're developing or testing, use test keys:
+`SEGNALS_API_BASE` chooses the server; the key's prefix does not. To use Segnals' staging
+environment instead of production:
 
 ```bash
-export SEGNALS_API_KEY=sk_test_your_test_key
-export SEGNALS_API_BASE=https://staging.segnals.com/api
+export SEGNALS_API_KEY=sk_live_your_staging_key
+export SEGNALS_API_BASE=https://test.segnals.com/api
 ```
 
-Common test mode issues:
-- **Test data doesn't match production** — test environment has separate data
-- **Some features may be limited** — test environment may not have marketplace listings
-- **Performance may differ** — staging has fewer resources than production
+Staging needs its own API key, created on test.segnals.com, and it is not all demo: some
+accounts there trade real money. Treat a staging key like a production key.
+
+Common staging issues:
+- **401 with a key that works on segnals.com** — staging has its own accounts and keys
+- **Data doesn't match production** — staging has separate data
+- **The container ignores the base URL** — with Docker, pass `-e SEGNALS_API_BASE` too
 
 ---
 
@@ -158,4 +169,4 @@ Common test mode issues:
 
 - **Documentation:** [segnals.com/docs](https://segnals.com/docs)
 - **Support:** [support@segnals.com](mailto:support@segnals.com)
-- **GitHub Issues:** [github.com/segnals/segnals-mcp/issues](https://github.com/segnals/segnals-mcp/issues)
+- **GitHub Issues:** [github.com/eidostein/segnals-mcp/issues](https://github.com/eidostein/segnals-mcp/issues)

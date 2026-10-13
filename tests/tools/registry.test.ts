@@ -34,7 +34,7 @@ describe("Tool registry", () => {
     expect(names).not.toContain("segnals_get_sentiment");
     expect(names).not.toContain("segnals_get_market_price");
     expect(names).not.toContain("segnals_search_knowledge");
-    expect(tools.filter((tool) => /coming soon|not yet available/i.test(tool.description))).toEqual([]);
+    expect(tools.filter((tool) => /coming\s+soon|not\s+yet\s+available/i.test(tool.description))).toEqual([]);
   });
 
   it("registers exactly the 33 tools the capabilities catalog names", () => {

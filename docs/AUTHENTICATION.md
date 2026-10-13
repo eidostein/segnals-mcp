@@ -4,7 +4,7 @@
 
 Segnals MCP uses API keys for authentication. Keys are:
 
-- **Format:** `sk_live_<random>` (production) or `sk_test_<random>` (testing)
+- **Format:** `sk_live_<random>` or `sk_test_<random>`. The prefix is the mode picked when the key was created; it does not choose the server (see [Staging](#staging))
 - **Shown once:** Copy immediately when created — you can't retrieve it later
 - **Stored securely:** Only the SHA-256 hash is stored server-side
 - **Revocable:** Revoke any key instantly from the dashboard
@@ -27,8 +27,8 @@ will return `403 Forbidden` if the key lacks the required scope.
 | `write:strategies` | Write | Create strategies with full config |
 | `read:marketplace` | Read | Browse marketplace, view listings |
 | `write:marketplace` | Write | Copy and publish strategies |
-| `read:news` | Read | Newsfeed, sentiment, market prices |
-| `read:knowledge` | Read | Knowledge base search |
+| `read:news` | Read | Market newsfeed |
+| `read:knowledge` | Read | Nothing yet: no tool uses this scope |
 | `manage:notifications` | Read/Write | Notification preferences |
 
 ### Scope Recommendations
@@ -130,14 +130,15 @@ If your API key is accidentally exposed (committed to git, shared in chat, etc.)
 
 ---
 
-## Test Mode
+## Staging
 
-Keys starting with `sk_test_` connect to the test/staging environment:
+`SEGNALS_API_BASE` chooses the server; the key's prefix does not. To use Segnals' staging
+environment instead of production:
 
 ```bash
-export SEGNALS_API_KEY=sk_test_your_test_key
-export SEGNALS_API_BASE=https://staging.segnals.com/api
+export SEGNALS_API_KEY=sk_live_your_staging_key
+export SEGNALS_API_BASE=https://test.segnals.com/api
 ```
 
-Test keys have the same scope model but operate on test data. Use them for development
-and CI/CD without affecting your live account.
+Staging needs its own API key, created on test.segnals.com, and it is not all demo: some
+accounts there trade real money. Treat a staging key like a production key.

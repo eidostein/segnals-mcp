@@ -1,13 +1,11 @@
-# @segnals/mcp
+# Segnals MCP Server
 
 Manage your Segnals trading bots, strategies, PnL, and the strategy marketplace from any AI agent (Claude, Cursor, Claude Code, Windsurf, Copilot, etc.) — securely, by just talking.
 
-[![npm version](https://img.shields.io/npm/v/@segnals/mcp)](https://www.npmjs.com/package/@segnals/mcp)
 [![CI Build Status](https://github.com/eidostein/segnals-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/eidostein/segnals-mcp/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-orange)](https://modelcontextprotocol.io)
-[![Docker Pulls](https://img.shields.io/docker/pulls/segnals/mcp.svg?logo=docker&logoColor=white)](https://hub.docker.com/r/segnals/mcp)
 
 *Built by [Segnals](https://segnals.com) · Secure Algorithmic Trading Ecosystem*
 
@@ -41,15 +39,14 @@ Manage your Segnals trading bots, strategies, PnL, and the strategy marketplace 
 Here is how a conversation with an MCP-enabled agent flows:
 
 ### Use Case 1: Checking Portfolio Performance
-> **User**: *How are my bots performing this month?*
+> **User**: *How did my bots perform in October?*
 >
-> **Agent**: *(Calls `segnals_get_pnl_summary`)*
+> **Agent**: *(Calls `segnals_get_pnl_summary({ start_date: "2026-10-01", end_date: "2026-11-01" })`)*
 >
-> **Agent**: You have 3 active bots running. For the current calendar month:
-> *   **Total Net PnL**: +$245.50 (+3.4% account gain)
-> *   **Win Rate**: 68% (17 winning trades, 8 losing trades)
-> *   **Drawdown**: 1.2% maximum
-> *   **Top Performer**: *Trend Scalper Gold* (+$180.20 PnL)
+> **Agent**: You have 3 active bots out of 5. From 1 October to 1 November:
+> *   **Total PnL**: +$245.50
+> *   **Win Rate**: 68%
+> *   **Trades**: 25
 
 ### Use Case 2: Strategy Creation with Two-Step Confirmation Gate
 > **User**: *Set up a new Conservative EURUSD Forex bot with 2:1 Reward ratio.*
@@ -87,7 +84,7 @@ The **Segnals MCP Server** is a thin, secure gateway designed for the Model Cont
 >     *   List, query, and monitor active trading bot statuses.
 >     *   Create, modify, start, stop, restart, or delete trading bots.
 >     *   Browse the Strategy Marketplace and copy/purchase strategies.
->     *   Modify notification preferences and query market prices/sentiment.
+>     *   Modify notification preferences and read the market newsfeed.
 > *   **WHAT IT CANNOT DO (Strict Hard Exclusions)**:
 >     *   ❌ **No Fund Movement**: Cannot deposit, withdraw, or transfer funds.
 >     *   ❌ **No Secret Retrieval**: Cannot read, export, or enter API secrets for Bybit/MetaTrader 5. All exchange secrets are configured exclusively in the web dashboard.
@@ -97,15 +94,14 @@ The **Segnals MCP Server** is a thin, secure gateway designed for the Model Cont
 
 ## Features & Capability Overview
 
-The server exposes **36 distinct tools** structured across the following trading features:
+The server exposes **33 distinct tools** structured across the following trading features:
 
-*   **Account & Meta**: Retrieve subscription tiers, feature flags, active limitations, and system statuses.
-*   **Stats & Drawdowns**: Access current balance, historical performance analytics, and trade-by-trade logs.
+*   **Account & Meta**: Verify the key and read the account tier, subscription, and which exchanges are connected.
+*   **Stats**: Read the dashboard and profit/loss for a period (24h, 7d, 30d, all, or a date range), per-bot performance, and trades.
 *   **Life Cycle Control**: Create, update, start, stop, restart, and delete bots.
-*   **Forex & MT5**: Inspect broker connectivity and Metatrader 5 account status.
-*   **Indicators & Filters**: Bind custom filters (e.g. Bias Engine, Bollinger, EMA cross) to strategy pipelines.
+*   **Indicator Filter**: Switch the ADX, RSI, EMA, and ATR gates of a bot's indicator filter on or off and set their parameters.
 *   **Copy Trading & Marketplace**: Browse listings, copy paid or free strategies, and manage public offerings.
-*   **Market Feed & Knowledge**: Query real-time prices, fetch sentiment rankings, and search onboarding guides.
+*   **Market Feed**: Read the market newsfeed.
 
 *For inputs, outputs, and JSON examples for each tool, see the [Tool Reference Guide](docs/TOOLS.md).*
 
@@ -117,14 +113,14 @@ The server exposes **36 distinct tools** structured across the following trading
 Log in to your dashboard at [segnals.com](https://segnals.com), navigate to **Settings → API Keys**, generate a key, and select the desired scopes (e.g., `read:account`, `read:bots`). Copy the token (`sk_live_...` or `sk_test_...`).
 
 ### 2. Configure Claude Desktop
-Open your Claude Desktop configuration file (see location directories below) and add the server:
+Open your Claude Desktop configuration file (see location directories below) and add the server. This runs the published Docker image, so Docker must be installed (to run from source instead, see [Installation](#installation)):
 
 ```json
 {
   "mcpServers": {
     "segnals-mcp": {
-      "command": "npx",
-      "args": ["-y", "@segnals/mcp"],
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "-e", "SEGNALS_API_KEY", "ghcr.io/eidostein/segnals-mcp:latest"],
       "env": {
         "SEGNALS_API_KEY": "sk_live_your_actual_key_here"
       }
@@ -159,16 +155,17 @@ For more details, see the [Onboarding Guide](docs/GETTING_STARTED.md).
 
 ## Installation
 
-You can run the Segnals MCP server using three methods:
+There are two ways to run the Segnals MCP server. The package is not published to npm, so there is no `npm install` for it.
 
-### Method A: npx (Recommended)
-This is the simplest way to run the server. It will download and run the latest version automatically:
+### Method A: Docker image (GHCR)
+The public image is `ghcr.io/eidostein/segnals-mcp`. `-i` keeps stdin open, which the MCP stdio transport needs; `-e SEGNALS_API_KEY` passes the key from your environment into the container:
 ```bash
 export SEGNALS_API_KEY=sk_live_your_key_here
-npx -y @segnals/mcp
+docker run --rm -i -e SEGNALS_API_KEY ghcr.io/eidostein/segnals-mcp:latest
 ```
+The image is rebuilt on each release tag, so `latest` is the last release. To run what is on `main` today, build from source.
 
-### Method B: From Source (For Developers)
+### Method B: Build from source
 Requires Node.js >= 18.
 ```bash
 git clone https://github.com/eidostein/segnals-mcp.git
@@ -177,12 +174,6 @@ npm ci
 npm run build
 export SEGNALS_API_KEY=sk_live_your_key_here
 node dist/index.js
-```
-
-### Method C: Docker
-We maintain a public Docker image on GHCR:
-```bash
-docker run --rm -it -e SEGNALS_API_KEY=sk_live_your_key_here ghcr.io/eidostein/segnals-mcp:latest
 ```
 
 ---
@@ -201,8 +192,8 @@ Add this entry to your `mcpServers` object:
 {
   "mcpServers": {
     "segnals-mcp": {
-      "command": "npx",
-      "args": ["-y", "@segnals/mcp"],
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "-e", "SEGNALS_API_KEY", "ghcr.io/eidostein/segnals-mcp:latest"],
       "env": {
         "SEGNALS_API_KEY": "${env:SEGNALS_API_KEY}"
       }
@@ -212,18 +203,24 @@ Add this entry to your `mcpServers` object:
 ```
 *(Note: Replace `${env:SEGNALS_API_KEY}` with your actual key or define it in your shell profile).*
 
+If you built from source, use `"command": "node"` and `"args": ["/absolute/path/to/segnals-mcp/dist/index.js"]` instead.
+
 ### 2. Cursor
 Navigate to **Settings → Features → MCP**:
 1.  Click **+ Add New MCP Server**.
 2.  **Name**: `segnals`
 3.  **Type**: `command`
-4.  **Command**: `npx -y @segnals/mcp`
+4.  **Command**: `docker run --rm -i -e SEGNALS_API_KEY ghcr.io/eidostein/segnals-mcp:latest` (or `node /absolute/path/to/segnals-mcp/dist/index.js` for a build from source)
 5.  **Environment Variables**: Key = `SEGNALS_API_KEY`, Value = `sk_live_...`
 
 ### 3. Claude Code (CLI)
-Install and connect directly from the command line:
+Connect directly from the command line, with `SEGNALS_API_KEY` exported in the same shell:
 ```bash
-claude mcp add segnals-mcp -- npx -y @segnals/mcp
+claude mcp add segnals-mcp -- docker run --rm -i -e SEGNALS_API_KEY ghcr.io/eidostein/segnals-mcp:latest
+```
+For a build from source:
+```bash
+claude mcp add segnals-mcp -- node /absolute/path/to/segnals-mcp/dist/index.js
 ```
 
 For more details, see the [Configuration Guide](docs/CONFIGURATION.md).
@@ -239,14 +236,16 @@ The server utilizes scoped access tokens to restrict API permissions. The follow
 | `read:account` | Account | Access account profiles, billing details, and subscription tiers. |
 | `read:stats` | Performance | View PnL statistics, drawdown ratios, and trade logs. |
 | `read:bots` | Bots | View current active/inactive trading bots and their configs. |
-| `write:bots` | Bots | Create, configure, and modify trading bots. |
-| `control:bots` | Bots | Start, stop, restart, and delete trading bots. |
-| `write:strategies` | Strategies | Save and update trading strategy configurations. |
+| `write:bots` | Bots | Create, update, and delete trading bots; set indicator filters. |
+| `control:bots` | Bots | Start, stop, and restart trading bots; start or stop copy trading. |
+| `write:strategies` | Strategies | Create a bot with a full strategy configuration in one call. |
 | `read:marketplace` | Marketplace | Search public listings and view pricing details. |
 | `write:marketplace` | Marketplace | Publish strategies and manage personal marketplace offerings. |
-| `read:news` | Market Feed | Retrieve news tickers, sentiment ratings, and market indicators. |
-| `read:knowledge` | Support | Query internal support knowledge base documents. |
+| `read:news` | Market Feed | Retrieve the market newsfeed. |
+| `read:knowledge` | Support | Reserved. No tool uses it yet. |
 | `manage:notifications` | Notifications | Fetch and save bot alerts and channel preferences. |
+
+The `read:knowledge` scope has no tool yet: it can be ticked on a key, but nothing in this server needs it. Sentiment, live prices and help search are not offered until the API has routes for them.
 
 For detailed information, see the [Authentication Documentation](docs/AUTHENTICATION.md).
 
@@ -254,46 +253,43 @@ For detailed information, see the [Authentication Documentation](docs/AUTHENTICA
 
 ## Tool Reference
 
-The following table summarizes the **36 tools** exposed by the Segnals MCP server:
+The following table summarizes the **33 tools** exposed by the Segnals MCP server:
 
 | Tool Name | Operation | Description | Required Scope | Confirmation |
 |---|---|---|---|---|
-| `segnals_whoami` | Read | Fetch current user details and verification status. | `read:account` | No |
-| `segnals_get_capabilities` | Read | List active features and system constraints. | `read:account` | No |
-| `segnals_get_subscription` | Read | Fetch active subscription end dates and details. | `read:account` | No |
-| `segnals_get_account` | Read | Retrieve active trading account summaries and configurations. | `read:stats` | No |
-| `segnals_get_dashboard` | Read | Access overview dashboard counters. | `read:stats` | No |
-| `segnals_get_pnl_summary` | Read | Retrieve PnL summaries, drawdown, and win rates. | `read:stats` | No |
-| `segnals_get_bot_performance` | Read | Analyze a specific bot's performance metrics. | `read:stats` | No |
-| `segnals_get_trades` | Read | Retrieve historical trade executions. | `read:stats` | No |
-| `segnals_list_connections` | Read | List saved broker and exchange connection status. | `read:bots` | No |
-| `segnals_list_bots` | Read | List all user bots. | `read:bots` | No |
-| `segnals_get_bot` | Read | Retrieve config parameters for a specific bot. | `read:bots` | No |
-| `segnals_get_bot_logs` | Read | Read output log files for a specific bot. | `read:bots` | No |
-| `segnals_get_strategy_schema` | Read | Fetch parameters schema validation rules. | `read:bots` | No |
-| `segnals_create_bot` | Write | Spawn a new trading bot. | `write:bots` | ✋ **Yes** |
-| `segnals_update_bot` | Write | Modify configurations for an existing bot. | `write:bots` | ✋ **Yes** |
-| `segnals_delete_bot` | Control | Remove a bot from the workspace. | `control:bots` | ✋ **Yes** |
-| `segnals_start_bot` | Control | Resume a paused bot. | `control:bots` | ✋ **Yes** |
-| `segnals_stop_bot` | Control | Pause an active bot. | `control:bots` | ✋ **Yes** |
-| `segnals_restart_bot` | Control | Reboot a bot container instance. | `control:bots` | ✋ **Yes** |
-| `segnals_create_strategy` | Write | Save a new custom strategy. | `write:strategies` | ✋ **Yes** |
-| `segnals_set_indicator_filter` | Write | Add indicator filters (RSI, Bollinger) to a bot. | `write:strategies` | ✋ **Yes** |
-| `segnals_explain_config` | Read | Request explanation of a strategy's parameters. | `read:marketplace` | No |
-| `segnals_browse_marketplace` | Read | Search marketplace strategy listings. | `read:marketplace` | No |
-| `segnals_get_listing` | Read | Retrieve pricing details for a marketplace item. | `read:marketplace` | No |
-| `segnals_my_listings` | Read | List strategies published by you. | `read:marketplace` | No |
-| `segnals_publish_listing` | Write | Sell a custom strategy in the marketplace. | `write:marketplace` | ✋ **Yes** |
-| `segnals_copy_strategy` | Write | Copy/purchase a marketplace strategy. | `write:marketplace` | ✋ **Yes** |
-| `segnals_get_copy_trading` | Read | View linked follower accounts. | `read:marketplace` | No |
-| `segnals_control_copy_trading` | Write | Toggle copy trading states. | `read:marketplace` | ✋ **Yes** |
-| `segnals_get_news` | Read | Retrieve news tickers. | `read:news` | No |
-| `segnals_get_sentiment` | Read | Fetch coin and stock sentiment metrics. | `read:news` | No |
-| `segnals_get_market_price` | Read | Fetch live assets tickers. | `read:news` | No |
-| `segnals_search_knowledge` | Read | Search help documentation. | `read:knowledge` | No |
-| `segnals_get_notifications` | Read | Retrieve alert configurations. | `manage:notifications` | No |
-| `segnals_set_notifications` | Write | Update alert delivery target. | `manage:notifications` | No |
-| `segnals_get_safety_disclaimer` | Read | Fetch the legal platform disclaimer. | None | No |
+| `segnals_whoami` | Read | Verify the API key and show the username and tier. | any valid key | No |
+| `segnals_get_capabilities` | Read | List all tools and the scope each one needs. | any valid key | No |
+| `segnals_get_safety_disclaimer` | Read | Return the risk and safety disclaimer. | any valid key | No |
+| `segnals_get_account` | Read | Account tier, subscription, and bot limits. | `read:account` | No |
+| `segnals_get_subscription` | Read | Subscription plan and billing status. | `read:account` | No |
+| `segnals_list_connections` | Read | Which exchanges are connected (yes/no only). | `read:account` | No |
+| `segnals_get_dashboard` | Read | Dashboard overview for a period (timeframe or date range). | `read:stats` | No |
+| `segnals_get_pnl_summary` | Read | Total PnL, win rate, and trade count for a period. | `read:stats` | No |
+| `segnals_get_bot_performance` | Read | One bot's performance metrics. | `read:stats` | No |
+| `segnals_get_trades` | Read | Trade history. | `read:stats` | No |
+| `segnals_list_bots` | Read | List all bots with their status. | `read:bots` | No |
+| `segnals_get_bot` | Read | One bot's full config and status. | `read:bots` | No |
+| `segnals_get_bot_logs` | Read | One bot's execution logs. | `read:bots` | No |
+| `segnals_get_strategy_schema` | Read | One bot's current config: the settings that can be changed. | `read:bots` | No |
+| `segnals_explain_config` | Read | A bot's config with risk warnings (martingale, leverage above 10x, stop-loss). | `read:bots` | No |
+| `segnals_create_bot` | Write | Create a new bot (starts stopped). | `write:bots` | ✋ **Yes** |
+| `segnals_update_bot` | Write | Change a bot's config or name. | `write:bots` | ✋ **Yes** |
+| `segnals_delete_bot` | Write | Permanently delete a bot. | `write:bots` | ✋ **Yes** |
+| `segnals_start_bot` | Control | Start a bot. | `control:bots` | ✋ **Yes** |
+| `segnals_stop_bot` | Control | Stop a bot. | `control:bots` | No |
+| `segnals_restart_bot` | Control | Restart a bot. | `control:bots` | ✋ **Yes** |
+| `segnals_create_strategy` | Write | Create a bot and apply a full config in one call. | `write:strategies` | ✋ **Yes** |
+| `segnals_set_indicator_filter` | Write | Switch an indicator gate (ADX, RSI, EMA, ATR) on or off and set its parameters. | `write:bots` | No |
+| `segnals_browse_marketplace` | Read | Browse marketplace strategy listings. | `read:marketplace` | No |
+| `segnals_get_listing` | Read | One listing's details and performance. | `read:marketplace` | No |
+| `segnals_my_listings` | Read | Your own marketplace listings. | `read:marketplace` | No |
+| `segnals_copy_strategy` | Write | Copy a marketplace strategy (free or paid). | `write:marketplace` | ✋ **Yes** |
+| `segnals_publish_listing` | Write | Publish a bot as a marketplace listing (VIP). | `write:marketplace` | ✋ **Yes** |
+| `segnals_get_news` | Read | Market newsfeed. | `read:news` | No |
+| `segnals_get_copy_trading` | Read | Copy trading config and status. | `read:account` | No |
+| `segnals_control_copy_trading` | Control | Start or stop copy trading (VIP). | `control:bots` | ✋ **Yes** |
+| `segnals_get_notifications` | Read | Notification preferences. | `manage:notifications` | No |
+| `segnals_set_notifications` | Write | Update notification preferences. | `manage:notifications` | No |
 
 *For complete usage specifications, see [docs/TOOLS.md](docs/TOOLS.md).*
 
@@ -376,7 +372,7 @@ The Segnals MCP Server acts as an intermediate translator between your local age
 
 ### 1. The Server Does Not Appear in Claude Desktop
 *   **Cause**: Invalid path configuration or Node.js missing from system path.
-*   **Fix**: Verify your Node.js installation by running `node -v`. Check that the command is configured as `"command": "npx"` and the `args` include `"-y", "@segnals/mcp"`. Check the Claude Desktop log files at `%APPDATA%\Claude\logs\mcp.log` or `~/Library/Logs/Claude/mcp.log`.
+*   **Fix**: Check that the configured command starts the server from a terminal: `docker run --rm -i -e SEGNALS_API_KEY ghcr.io/eidostein/segnals-mcp:latest` needs Docker running, and a build from source needs Node.js (`node -v`) and an absolute path to `dist/index.js`. Check the Claude Desktop log files at `%APPDATA%\Claude\logs\mcp.log` or `~/Library/Logs/Claude/mcp.log`.
 
 ### 2. Error Code: 401 Unauthorized
 *   **Cause**: Malformed, expired, or incorrect API key format.

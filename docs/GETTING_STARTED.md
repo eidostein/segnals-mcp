@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - A [Segnals](https://segnals.com) account (free tier works for read-only)
-- Node.js 18 or later
+- Docker, to run the published image; or Node.js 18 or later, to build from source
 - An MCP-compatible client (Claude Desktop, Claude Code, Cursor, Windsurf, etc.)
 
 ---
@@ -35,8 +35,8 @@ with a free account — read-only MCP tools work on all tiers.
 | `write:strategies` | Create strategies with full config | Strategy building |
 | `read:marketplace` | Browse marketplace listings | Exploring |
 | `write:marketplace` | Copy and publish strategies | Marketplace users |
-| `read:news` | News, sentiment, market prices | Market awareness |
-| `read:knowledge` | Knowledge base search | Self-service |
+| `read:news` | Market newsfeed | Market awareness |
+| `read:knowledge` | Nothing yet: no tool uses this scope | — |
 | `manage:notifications` | Notification preferences | All users |
 
 **Starting out?** Select `read:account`, `read:stats`, and `read:bots` for a safe,
@@ -66,29 +66,30 @@ source ~/.zshrc
 
 ## Step 4: Install and Configure
 
-### Option A: npx (recommended — zero install)
+The server is not published to npm. There are two ways to run it.
+
+### Option A: Docker image (GHCR)
 
 ```bash
-npx @segnals/mcp
+docker run --rm -i -e SEGNALS_API_KEY ghcr.io/eidostein/segnals-mcp:latest
 ```
 
-### Option B: Docker
+`-i` keeps stdin open for the MCP stdio transport, and `-e SEGNALS_API_KEY` passes the
+key you exported in Step 3 into the container. The image is rebuilt on each release tag,
+so `latest` is the last release.
+
+### Option B: Build from source
 
 ```bash
-docker run --rm -e SEGNALS_API_KEY=sk_live_... ghcr.io/segnals/mcp
-```
-
-### Option C: Clone and build
-
-```bash
-git clone https://github.com/segnals/segnals-mcp.git
+git clone https://github.com/eidostein/segnals-mcp.git
 cd segnals-mcp
-npm install && npm run build
-SEGNALS_API_KEY=sk_live_... node dist/index.js
+npm ci
+npm run build
+node dist/index.js
 ```
 
 Then configure your MCP client — see [CONFIGURATION.md](CONFIGURATION.md) for
-Claude Desktop, Claude Code, Cursor, and Docker setup snippets.
+Claude Desktop, Claude Code, and Cursor setup snippets.
 
 ---
 
@@ -116,23 +117,24 @@ Try these prompts to explore:
 
 ---
 
-## Test Mode
+## Staging
 
-API keys starting with `sk_test_` connect to the test environment. Use these for
-development and experimentation without affecting your live account.
-
-When using test mode, set the base URL:
+`SEGNALS_API_BASE` chooses the server; the key's prefix does not. To point the MCP
+server at Segnals' staging environment instead of production:
 
 ```bash
-export SEGNALS_API_KEY=sk_test_your_test_key
-export SEGNALS_API_BASE=https://staging.segnals.com/api
+export SEGNALS_API_KEY=sk_live_your_staging_key
+export SEGNALS_API_BASE=https://test.segnals.com/api
 ```
+
+Staging needs its own API key, created on test.segnals.com, and it is not all demo: some
+accounts there trade real money. Treat a staging key like a production key.
 
 ---
 
 ## Next Steps
 
 - [Authentication](AUTHENTICATION.md) — scopes, rotation, security
-- [Tools Reference](TOOLS.md) — all 36 tools with examples
+- [Tools Reference](TOOLS.md) — all 33 tools with examples
 - [Safety](SAFETY.md) — what the MCP can and cannot do
 - [Troubleshooting](TROUBLESHOOTING.md) — common errors and fixes

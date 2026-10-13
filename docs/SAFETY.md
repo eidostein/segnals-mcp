@@ -7,7 +7,7 @@
 - ✅ View your trading dashboard, PnL, performance metrics, and trade history
 - ✅ List, inspect, and explain your bot configurations
 - ✅ Browse the strategy marketplace and view listings
-- ✅ Read news, market data, and sentiment
+- ✅ Read the market newsfeed
 - ✅ View your notification preferences and copy trading status
 
 ### Write Operations (with confirmation)
@@ -78,14 +78,22 @@ All destructive or high-impact operations use a **two-step confirmation pattern*
 
 ## Risk Detection
 
-The MCP server automatically flags risky configurations in previews:
+The MCP server flags three risky settings, in the previews of `segnals_update_bot` and
+`segnals_create_strategy` and in `segnals_explain_config`. It reads them from the nested
+keys the trading engine uses:
 
-| Risk | Warning |
-|------|---------|
-| Martingale + leverage > 10x | ⚠️ HIGH RISK: amplified losses |
-| Martingale enabled | ⚠️ Position sizes increase after losses |
-| Leverage > 20x | ⚠️ Very high leverage |
-| No stop-loss | ⚠️ No downside protection |
+| Risk | Key read | Warning |
+|------|----------|---------|
+| Martingale + leverage > 10x | `MARTINGALE.ENABLED`, `TRADING_PARAMS.LEVERAGE` | ⚠️ HIGH RISK: amplified losses |
+| Martingale enabled | `MARTINGALE.ENABLED` | ⚠️ Position sizes increase after losses |
+| Leverage > 10x | `TRADING_PARAMS.LEVERAGE` | ⚠️ High leverage |
+| Stop-loss missing or 0 | `STOP_LOSS.VALUE_PCT` | ⚠️ No downside protection |
+
+A candle-based stop (`STOP_LOSS.TYPE` of `last_candle_high`, `last_candle_low`,
+`last_candle_auto` or `hhll`) counts as a stop-loss. The update preview judges the config
+the bot would hold after the update; the strategy preview judges only the keys it is
+given, because every other setting keeps the platform default. Nothing else in a config is
+analysed: no warning does not mean no risk.
 
 Agents are required to present these warnings to the user before proceeding.
 

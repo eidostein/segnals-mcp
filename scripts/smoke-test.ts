@@ -106,7 +106,7 @@ if (listedNames.length !== EXPECTED_TOOL_COUNT || missing.length > 0 || unexpect
 }
 
 // A listed tool must do what its description says: no placeholders.
-const placeholders = listedTools.filter((tool) => /coming soon/i.test(tool.description ?? ""));
+const placeholders = listedTools.filter((tool) => /coming\s+soon|not\s+yet\s+available/i.test(tool.description ?? ""));
 if (placeholders.length > 0) {
   console.error(`\n❌ FAIL: placeholder tools listed: ${placeholders.map((tool) => tool.name).join(", ")}`);
   process.exit(1);
