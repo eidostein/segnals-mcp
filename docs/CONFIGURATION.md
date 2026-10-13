@@ -102,7 +102,7 @@ docker run --rm -i -e SEGNALS_API_KEY ghcr.io/eidostein/segnals-mcp:latest
 
 The server speaks MCP over stdin/stdout and waits for a client, so a healthy start prints
 nothing; a missing or malformed key prints an error and exits. To pin a release instead of
-`latest`, use its tag, e.g. `ghcr.io/eidostein/segnals-mcp:0.1.0`.
+`latest`, use its tag, e.g. `ghcr.io/eidostein/segnals-mcp:0.1.1`.
 
 ---
 

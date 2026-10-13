@@ -5,11 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-Not in the `latest` image yet: the image is rebuilt when a release tag is cut.
+## [0.1.1] — 2026-10-13
 
 ### Fixed
+- A 403 is reported as a missing scope only when the API names the scope. Any other 403 (a protected bot, a tier limit, a frozen account) shows the API's own message; every 403 used to be reported as a missing scope. When a route accepts one of several scopes, the message names each
 - `segnals_get_news` calls `/newsfeed/newsfeed`, the route the API serves (it called `/newsfeed`, which the API does not serve)
 - `segnals_set_indicator_filter` writes `INDICATOR_FILTER.<NAME>.ENABLED` and the gate's own settings, the keys the engine reads (it wrote flat keys nothing read). Enabling a gate also sets the master switch `INDICATOR_FILTER.ENABLED`. A param the gate does not have, or a value of the wrong type, is refused and nothing is written
 - Risk warnings read `MARTINGALE.ENABLED`, `TRADING_PARAMS.LEVERAGE` and `STOP_LOSS.VALUE_PCT` (they read flat keys that do not exist, so no bot was ever flagged). `segnals_explain_config` and the previews of `segnals_update_bot` and `segnals_create_strategy` share one helper. The high-leverage warning starts above 10x
@@ -20,6 +19,12 @@ Not in the `latest` image yet: the image is rebuilt when a release tag is cut.
 
 ### Removed
 - `segnals_get_sentiment`, `segnals_get_market_price` and `segnals_search_knowledge`: placeholders that returned no data. The server has 33 tools. The `read:knowledge` scope has no tool yet
+
+### Security
+- Lockfile updated so the production dependency audit passes: `@modelcontextprotocol/sdk` 1.32.1 and the hono, ip-address, proxy-addr and qs releases that close the advisories published since 0.1.0. `package.json` ranges are unchanged
+
+### Changed
+- A release tag publishes the Docker image only. The npm publish job also needs the repository variable `NPM_PUBLISH_ENABLED` set to `true`, and it is not set
 
 ### Docs
 - Install instructions name the two ways that exist: the GHCR image `ghcr.io/eidostein/segnals-mcp` and a build from source. The package is not on npm
@@ -66,4 +71,4 @@ Not in the `latest` image yet: the image is rebuilt when a release tag is cut.
 - `llms.txt` index for AI crawlers
 - Compatibility matrix and supported clients table
 
-\* = Placeholder that returned no data; removed after 0.1.0 (see Unreleased)
+\* = Placeholder that returned no data; removed in 0.1.1

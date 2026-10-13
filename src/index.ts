@@ -27,7 +27,7 @@ const config = loadConfig();
 // 2. Create MCP server
 const server = new McpServer({
   name: "segnals-mcp",
-  version: "0.1.0",
+  version: "0.1.1",
 });
 
 // 3. Create API client

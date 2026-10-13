@@ -116,7 +116,7 @@ export function registerMetaTools(server: McpServer, client: SegnalsClient): voi
     async () => {
       return ok({
         server: "segnals-mcp",
-        version: "0.1.0",
+        version: "0.1.1",
         transport: "stdio",
         tools: TOOL_CATALOG,
         note: "Tools marked with scope '(any valid key)' work with any valid API key. Other tools require the listed scope to be granted to your key.",

@@ -15,7 +15,7 @@ LABEL org.opencontainers.image.description="Manage algorithmic trading bots via 
 LABEL org.opencontainers.image.url="https://github.com/eidostein/segnals-mcp"
 LABEL org.opencontainers.image.source="https://github.com/eidostein/segnals-mcp"
 LABEL org.opencontainers.image.licenses="MIT"
-LABEL org.opencontainers.image.version="0.1.0"
+LABEL org.opencontainers.image.version="0.1.1"
 
 WORKDIR /app
 COPY package*.json ./
