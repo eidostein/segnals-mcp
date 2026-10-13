@@ -14,6 +14,7 @@
 import type { SegnalsConfig } from "./config.js";
 import {
   ApiKeyError,
+  ForbiddenError,
   NetworkError,
   RateLimitError,
   ScopeError,
@@ -57,7 +58,8 @@ export class SegnalsClient {
    * @param options - Request options
    * @returns The parsed JSON response data
    * @throws {ApiKeyError} on 401
-   * @throws {ScopeError} on 403
+   * @throws {ScopeError} on a 403 that names a scope
+   * @throws {ForbiddenError} on any other 403
    * @throws {RateLimitError} on 429
    * @throws {ServerError} on 5xx
    * @throws {NetworkError} on network failures
@@ -217,9 +219,13 @@ export class SegnalsClient {
         throw new ApiKeyError(detail || undefined);
 
       case 403: {
-        // Extract scope from the error response if available
-        const requiredScope = (body.required as string) ?? "unknown";
-        throw new ScopeError(requiredScope);
+        // A 403 is a missing scope only when the API names the scope. It also refuses
+        // protected bots, tier limits and frozen accounts, and says which in its message.
+        const required = body.required;
+        if (typeof required === "string" || Array.isArray(required)) {
+          throw new ScopeError(required as string | string[]);
+        }
+        throw new ForbiddenError(detail || undefined);
       }
 
       case 429: {

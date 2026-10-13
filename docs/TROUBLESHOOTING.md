@@ -57,6 +57,17 @@ Your API key doesn't have the permission needed for this action.
 
 ---
 
+### 403 — "Segnals refused this request"
+
+The API refused the action for a reason that is not a scope, and the message after the
+colon is the API's own: a tier limit ("VIP tier required"), a bot that is protected, a
+frozen account, a route API keys may not use.
+
+**Fix:** Act on the reason given. Adding scopes to the key does not change it, and
+retrying gives the same answer.
+
+---
+
 ### 429 — "Rate limit reached"
 
 You've exceeded the rate limit (default: 120 requests/minute per key).

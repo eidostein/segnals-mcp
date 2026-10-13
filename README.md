@@ -379,8 +379,8 @@ The Segnals MCP Server acts as an intermediate translator between your local age
 *   **Fix**: Ensure your environment key is correctly configured as `export SEGNALS_API_KEY=sk_live_...` and that the prefix is correct. Make sure the key has not been revoked on the dashboard.
 
 ### 3. Error Code: 403 Forbidden
-*   **Cause**: The API key lacks the required scopes for the executed tool.
-*   **Fix**: Verify the scope required by the tool (see [Tool Reference](#tool-reference)) and generate a new key on the dashboard with the appropriate scope.
+*   **Cause**: Either the API key lacks the scope the tool needs (the message names the scope), or the API refused the action for its own reason, such as a tier limit or a protected bot (the message starts with "Segnals refused this request" and gives the reason).
+*   **Fix**: For a missing scope, verify the scope required by the tool (see [Tool Reference](#tool-reference)) and generate a new key on the dashboard with the appropriate scope. For any other refusal, act on the reason given: adding scopes does not change it.
 
 ### 4. Error Code: 429 Too Many Requests
 *   **Cause**: Request rate limit exceeded.
