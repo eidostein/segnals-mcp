@@ -9,36 +9,39 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SegnalsClient } from "../client.js";
 import { ok, err } from "./helpers.js";
 import { SAFETY_DISCLAIMER } from "./meta.js";
+import { riskWarnings, STOP_LOSS_LEFT_TO_DEFAULT } from "./risk.js";
+
+type ParamKind = "period" | "number" | readonly string[];
 
 /**
- * Detect risky combos in strategy config — shared with write-bots.
+ * The settings each indicator gate reads under INDICATOR_FILTER.<NAME>, as the engine
+ * names them. A param outside this table would be stored and never read.
  */
-function detectRiskyConfig(config: Record<string, unknown>): string[] {
-  const warnings: string[] = [];
+const INDICATOR_PARAMS: Record<"adx" | "rsi" | "ema" | "atr", Record<string, ParamKind>> = {
+  adx: { PERIOD: "period", MIN: "number", MAX: "number" },
+  rsi: {
+    PERIOD: "period",
+    MODE: ["filter_extremes", "require_band"],
+    OVERBOUGHT: "number",
+    OVERSOLD: "number",
+  },
+  ema: { FAST: "period", SLOW: "period" },
+  atr: { PERIOD: "period", MIN_PCT: "number", MAX_PCT: "number" },
+};
 
-  const martingale = config.MARTINGALE_ENABLED ?? config.martingale_enabled;
-  const leverage = Number(config.LEVERAGE ?? config.leverage ?? 1);
-
-  if (martingale && leverage > 10) {
-    warnings.push(
-      "⚠️ HIGH RISK: Martingale + leverage > 10x can amplify losses rapidly.",
-    );
+/** Why a param value cannot be stored, or null when it can. */
+function paramProblem(kind: ParamKind, value: unknown): string | null {
+  if (kind === "period") {
+    return typeof value === "number" && Number.isInteger(value) && value > 0
+      ? null
+      : "must be a whole number above 0";
   }
-  if (martingale) {
-    warnings.push(
-      "⚠️ Martingale mode increases position sizes after losses.",
-    );
+  if (kind === "number") {
+    return typeof value === "number" && Number.isFinite(value) ? null : "must be a number";
   }
-  if (leverage > 20) {
-    warnings.push(`⚠️ Very high leverage (${leverage}x).`);
-  }
-
-  const sl = Number(config.STOP_LOSS_PERCENT ?? config.stop_loss_percent ?? 0);
-  if (sl === 0) {
-    warnings.push("⚠️ No stop-loss configured.");
-  }
-
-  return warnings;
+  return typeof value === "string" && kind.includes(value)
+    ? null
+    : `must be one of: ${kind.join(", ")}`;
 }
 
 export function registerWriteStrategyTools(server: McpServer, client: SegnalsClient): void {
@@ -53,7 +56,13 @@ IMPORTANT: Never include exchange API keys/secrets in the config.`,
     {
       exchange: z.enum(["bybit", "phemex", "mt5"]).describe("Exchange for the strategy"),
       name: z.string().min(1).max(100).describe("Strategy name"),
-      config: z.record(z.unknown()).describe("Full strategy configuration"),
+      config: z
+        .record(z.unknown())
+        .describe(
+          "Strategy configuration, nested as segnals_get_bot shows it, e.g. " +
+            "{ TRADING_PARAMS: { LEVERAGE: 3 }, STOP_LOSS: { VALUE_PCT: 2 } }. " +
+            "Settings it does not name keep the platform default.",
+        ),
       confirm: z.boolean().optional().default(false).describe("Set to true to execute after previewing"),
     },
     async ({ exchange, name, config, confirm }) => {
@@ -71,7 +80,9 @@ IMPORTANT: Never include exchange API keys/secrets in the config.`,
           });
         }
 
-        const warnings = detectRiskyConfig(config);
+        // The config lands on top of a new bot's defaults, so a stop-loss it does not
+        // name is left to the default, not removed.
+        const warnings = riskWarnings(config, { missingStopLoss: STOP_LOSS_LEFT_TO_DEFAULT });
 
         if (!confirm) {
           return ok({
@@ -83,6 +94,7 @@ IMPORTANT: Never include exchange API keys/secrets in the config.`,
             name,
             config_keys: Object.keys(config),
             warnings,
+            warnings_basis: "only the keys in this config; every setting it does not name keeps the platform default",
             disclaimer: SAFETY_DISCLAIMER,
             instruction: "To proceed, call segnals_create_strategy again with confirm: true",
           });
@@ -139,30 +151,55 @@ IMPORTANT: Never include exchange API keys/secrets in the config.`,
   // ── segnals_set_indicator_filter (no confirmation — non-destructive config tweak) ──
   server.tool(
     "segnals_set_indicator_filter",
-    `Configure an indicator-based regime filter (ADX, RSI, EMA, ATR) on a bot. Requires scope: write:bots.
+    `Switch one gate of a bot's indicator filter (ADX, RSI, EMA or ATR) on or off and set its parameters. Requires scope: write:bots.
 
-This is a non-destructive config update — no confirmation required. The filter is applied to the bot's config and takes effect on next trade evaluation.`,
+Writes INDICATOR_FILTER.<NAME>.ENABLED and the given params into the bot's config; no confirmation required. Enabling a gate also sets the master switch INDICATOR_FILTER.ENABLED, which the engine needs before it runs any gate, so a gate already stored as enabled becomes active too. Disabling leaves the master switch alone.
+Params per gate (others are refused, nothing is written): adx: period, min, max. rsi: period, mode ("filter_extremes" | "require_band"), overbought, oversold. ema: fast, slow. atr: period, min_pct, max_pct.
+All gates share INDICATOR_FILTER.TIMEFRAME (default "D"); change it with segnals_update_bot. If the bot is running, restart it to be sure the change is applied.`,
     {
       bot_id: z.number().int().positive().describe("Bot ID to configure"),
-      filter_type: z.enum(["adx", "rsi", "ema", "atr"]).describe("Indicator filter type"),
-      enabled: z.boolean().describe("Enable or disable the filter"),
-      params: z.record(z.unknown()).optional().describe("Filter parameters (e.g., period, threshold)"),
+      filter_type: z.enum(["adx", "rsi", "ema", "atr"]).describe("Indicator gate to configure"),
+      enabled: z.boolean().describe("Switch the gate on or off"),
+      params: z
+        .record(z.unknown())
+        .optional()
+        .describe("Gate parameters, e.g. { period: 14, min: 25 } for adx. Keys are case-insensitive."),
     },
     async ({ bot_id, filter_type, enabled, params }) => {
       try {
-        // Build the config update for the specific filter
-        const filterKey = `FILTER_${filter_type.toUpperCase()}`;
-        const config: Record<string, unknown> = {
-          [`${filterKey}_ENABLED`]: enabled,
-        };
+        const name = filter_type.toUpperCase();
+        const allowed = INDICATOR_PARAMS[filter_type];
+        const gate: Record<string, unknown> = { ENABLED: enabled };
 
-        if (params) {
-          for (const [key, value] of Object.entries(params)) {
-            config[`${filterKey}_${key.toUpperCase()}`] = value;
+        const problems: string[] = [];
+        for (const [rawKey, value] of Object.entries(params ?? {})) {
+          const key = rawKey.toUpperCase();
+          if (!Object.hasOwn(allowed, key)) {
+            problems.push(`'${rawKey}' is not a setting of the ${name} gate`);
+            continue;
           }
+          const problem = paramProblem(allowed[key], value);
+          if (problem) {
+            problems.push(`'${rawKey}' ${problem}`);
+            continue;
+          }
+          gate[key] = value;
+        }
+        if (problems.length > 0) {
+          return err(
+            new Error(
+              `Nothing was written. ${problems.join("; ")}. ` +
+                `The ${name} gate accepts: ${Object.keys(allowed).map(k => k.toLowerCase()).join(", ")}.`,
+            ),
+          );
         }
 
-        const result = await client.put<{ msg: string }>(
+        // The engine runs no gate while INDICATOR_FILTER.ENABLED is off.
+        const config = {
+          INDICATOR_FILTER: { ...(enabled ? { ENABLED: true } : {}), [name]: gate },
+        };
+
+        const result = await client.put<{ msg: string; warning?: string }>(
           `/bots/${bot_id}`,
           { config, client: "mcp" },
         );
@@ -173,7 +210,13 @@ This is a non-destructive config update — no confirmation required. The filter
           bot_id,
           filter_type,
           enabled,
+          written: config,
           message: result.msg,
+          ...(result.warning ? { warning: result.warning } : {}),
+          note: enabled
+            ? "The master switch INDICATOR_FILTER.ENABLED is now on: every gate stored as enabled is active. " +
+              "If the bot is running, restart it to be sure the change is applied."
+            : "If the bot is running, restart it to be sure the change is applied.",
         });
       } catch (error) {
         return err(error);

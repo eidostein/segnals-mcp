@@ -2,10 +2,15 @@
  * Tests for write strategy tools — create_strategy and set_indicator_filter.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SegnalsClient } from "../../src/client.js";
 import { registerWriteStrategyTools } from "../../src/tools/write-strategies.js";
+
+// Every API call in this file is a spy on the client; a call that reaches fetch is a bug.
+beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network call not mocked")));
+});
 
 function createMockClient(): SegnalsClient {
   return new SegnalsClient({
@@ -43,15 +48,35 @@ describe("segnals_create_strategy", () => {
     const result = await handler({
       exchange: "bybit",
       name: "Scalper",
-      config: { MARTINGALE_ENABLED: true, LEVERAGE: 15 },
+      config: { MARTINGALE: { ENABLED: true }, TRADING_PARAMS: { LEVERAGE: 15 } },
       confirm: false,
     });
 
     expect(postSpy).not.toHaveBeenCalled();
     const data = JSON.parse(result.content[0].text);
     expect(data.action).toBe("create_strategy");
-    expect(data.warnings.some((w: string) => w.includes("Martingale"))).toBe(true);
+    expect(data.warnings.some((w: string) => w.includes("MARTINGALE.ENABLED"))).toBe(true);
+    expect(data.warnings.some((w: string) => w.includes("15x (TRADING_PARAMS.LEVERAGE)"))).toBe(true);
     expect(data.disclaimer).toContain("SOFTWARE TOOL");
+  });
+
+  // The config lands on a new bot's defaults: a stop-loss it does not name is not "no stop-loss".
+  it("says a stop-loss the config does not name is left to the platform default", async () => {
+    const { handlers } = createTestHarness();
+    const handler = handlers.get("segnals_create_strategy");
+    if (!handler) throw new Error("Tool not registered");
+
+    const unnamed = JSON.parse(
+      (await handler({ exchange: "bybit", name: "A", config: {}, confirm: false })).content[0].text,
+    );
+    const named = JSON.parse(
+      (await handler({ exchange: "bybit", name: "B", config: { STOP_LOSS: { VALUE_PCT: 2 } }, confirm: false }))
+        .content[0].text,
+    );
+
+    expect(unnamed.warnings).toHaveLength(1);
+    expect(unnamed.warnings[0]).toContain("platform default");
+    expect(named.warnings).toEqual([]);
   });
 
   it("rejects credentials in config", async () => {
@@ -79,17 +104,18 @@ describe("segnals_create_strategy", () => {
     const result = await handler({
       exchange: "phemex",
       name: "Grid Strategy",
-      config: { LEVERAGE: 3, STOP_LOSS_PERCENT: 2 },
+      config: { TRADING_PARAMS: { LEVERAGE: 3 }, STOP_LOSS: { VALUE_PCT: 2 } },
       confirm: true,
     });
 
     const data = JSON.parse(result.content[0].text);
     expect(data.executed).toBe(true);
     expect(data.bot_id).toBe(99);
+    expect(data.warnings).toEqual([]);
     expect(client.post).toHaveBeenCalledWith("/bots/create", { exchange: "phemex", client: "mcp" });
     expect(client.put).toHaveBeenCalledWith("/bots/99", {
       name: "Grid Strategy",
-      config: { LEVERAGE: 3, STOP_LOSS_PERCENT: 2 },
+      config: { TRADING_PARAMS: { LEVERAGE: 3 }, STOP_LOSS: { VALUE_PCT: 2 } },
       client: "mcp",
     });
   });
@@ -116,9 +142,48 @@ describe("segnals_create_strategy", () => {
 });
 
 describe("segnals_set_indicator_filter", () => {
-  it("updates filter config without confirmation", async () => {
+  // The engine reads INDICATOR_FILTER.<NAME>.*, and no gate at all while INDICATOR_FILTER.ENABLED is off.
+  it("writes the INDICATOR_FILTER keys the engine reads", async () => {
     const { handlers, client } = createTestHarness();
     vi.spyOn(client, "put").mockResolvedValue({ msg: "Bot updated" });
+
+    const handler = handlers.get("segnals_set_indicator_filter");
+    if (!handler) throw new Error("Tool not registered");
+    const result = await handler({
+      bot_id: 5,
+      filter_type: "adx",
+      enabled: true,
+      params: { period: 14, min: 25, MAX: 60 },
+    });
+
+    const written = {
+      INDICATOR_FILTER: { ENABLED: true, ADX: { ENABLED: true, PERIOD: 14, MIN: 25, MAX: 60 } },
+    };
+    const data = JSON.parse(result.content[0].text);
+    expect(data.executed).toBe(true);
+    expect(data.filter_type).toBe("adx");
+    expect(data.written).toEqual(written);
+    expect(client.put).toHaveBeenCalledWith("/bots/5", { config: written, client: "mcp" });
+  });
+
+  it("leaves the master switch alone when a gate is switched off", async () => {
+    const { handlers, client } = createTestHarness();
+    vi.spyOn(client, "put").mockResolvedValue({ msg: "Bot updated" });
+
+    const handler = handlers.get("segnals_set_indicator_filter");
+    if (!handler) throw new Error("Tool not registered");
+    await handler({ bot_id: 5, filter_type: "rsi", enabled: false });
+
+    expect(client.put).toHaveBeenCalledWith("/bots/5", {
+      config: { INDICATOR_FILTER: { RSI: { ENABLED: false } } },
+      client: "mcp",
+    });
+  });
+
+  // A key the gate does not read would be stored and never used: success that changes nothing.
+  it("refuses a param the gate does not read, and writes nothing", async () => {
+    const { handlers, client } = createTestHarness();
+    const putSpy = vi.spyOn(client, "put");
 
     const handler = handlers.get("segnals_set_indicator_filter");
     if (!handler) throw new Error("Tool not registered");
@@ -129,16 +194,38 @@ describe("segnals_set_indicator_filter", () => {
       params: { period: 14, threshold: 25 },
     });
 
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("'threshold' is not a setting of the ADX gate");
+    expect(result.content[0].text).toContain("period, min, max");
+    expect(putSpy).not.toHaveBeenCalled();
+  });
+
+  // The engine swaps a value it cannot read for its default without saying so.
+  it("refuses a value of the wrong type, and writes nothing", async () => {
+    const { handlers, client } = createTestHarness();
+    const putSpy = vi.spyOn(client, "put");
+
+    const handler = handlers.get("segnals_set_indicator_filter");
+    if (!handler) throw new Error("Tool not registered");
+    const period = await handler({ bot_id: 5, filter_type: "ema", enabled: true, params: { fast: "20" } });
+    const mode = await handler({ bot_id: 5, filter_type: "rsi", enabled: true, params: { mode: "strict" } });
+
+    expect(period.isError).toBe(true);
+    expect(period.content[0].text).toContain("'fast' must be a whole number above 0");
+    expect(mode.isError).toBe(true);
+    expect(mode.content[0].text).toContain("filter_extremes, require_band");
+    expect(putSpy).not.toHaveBeenCalled();
+  });
+
+  it("passes the API's warning on", async () => {
+    const { handlers, client } = createTestHarness();
+    vi.spyOn(client, "put").mockResolvedValue({ msg: "Bot updated", warning: "Contradictory filter settings" });
+
+    const handler = handlers.get("segnals_set_indicator_filter");
+    if (!handler) throw new Error("Tool not registered");
+    const result = await handler({ bot_id: 5, filter_type: "atr", enabled: true, params: { min_pct: 0.5 } });
+
     const data = JSON.parse(result.content[0].text);
-    expect(data.executed).toBe(true);
-    expect(data.filter_type).toBe("adx");
-    expect(client.put).toHaveBeenCalledWith("/bots/5", {
-      config: {
-        FILTER_ADX_ENABLED: true,
-        FILTER_ADX_PERIOD: 14,
-        FILTER_ADX_THRESHOLD: 25,
-      },
-      client: "mcp",
-    });
+    expect(data.warning).toBe("Contradictory filter settings");
   });
 });

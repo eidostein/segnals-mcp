@@ -115,45 +115,52 @@ describe("Bots tools", () => {
   });
 
   describe("segnals_explain_config", () => {
-    it("flags Martingale as risky", async () => {
+    function stubBot(config: Record<string, unknown>) {
       const mockFetch = vi.fn().mockResolvedValue(
         new Response(
-          JSON.stringify({
-            bot: {
-              id: 42,
-              name: "Risky Bot",
-              exchange: "bybit",
-              status: "stopped",
-              config: { martingale_enabled: true, leverage: 20 },
-            },
-          }),
+          JSON.stringify({ bot: { id: 42, name: "Bot", exchange: "bybit", status: "stopped", config } }),
           { status: 200 },
         ),
       );
       vi.stubGlobal("fetch", mockFetch);
+    }
+
+    it("flags martingale and high leverage from the nested keys", async () => {
+      stubBot({
+        MARTINGALE: { ENABLED: true },
+        TRADING_PARAMS: { LEVERAGE: 20 },
+        STOP_LOSS: { TYPE: "percentage", VALUE_PCT: 0.5 },
+      });
 
       const result = await handlers.segnals_explain_config({ bot_id: 42 });
       const data = JSON.parse(result.content[0].text);
 
-      expect(data.warnings.length).toBeGreaterThan(0);
-      expect(data.warnings.some((w: string) => w.includes("MARTINGALE"))).toBe(true);
-      expect(data.warnings.some((w: string) => w.includes("LEVERAGE"))).toBe(true);
+      expect(data.warnings.some((w: string) => w.includes("MARTINGALE.ENABLED"))).toBe(true);
+      expect(data.warnings.some((w: string) => w.includes("TRADING_PARAMS.LEVERAGE"))).toBe(true);
+      expect(data.warnings.some((w: string) => /stop-loss/i.test(w))).toBe(false);
+    });
+
+    it("warns when the stop-loss is 0", async () => {
+      stubBot({ TRADING_PARAMS: { LEVERAGE: 3 }, STOP_LOSS: { TYPE: "percentage", VALUE_PCT: 0 } });
+
+      const result = await handlers.segnals_explain_config({ bot_id: 42 });
+      const data = JSON.parse(result.content[0].text);
+
+      expect(data.warnings).toHaveLength(1);
+      expect(data.warnings[0]).toContain("Stop-loss is 0");
     });
 
     it("shows no warnings for safe config", async () => {
-      const mockFetch = vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            bot: { id: 10, name: "Safe Bot", exchange: "bybit", status: "running", config: { leverage: 3 } },
-          }),
-          { status: 200 },
-        ),
-      );
-      vi.stubGlobal("fetch", mockFetch);
+      stubBot({
+        MARTINGALE: { ENABLED: false },
+        TRADING_PARAMS: { LEVERAGE: 3 },
+        STOP_LOSS: { TYPE: "percentage", VALUE_PCT: 2 },
+      });
 
-      const result = await handlers.segnals_explain_config({ bot_id: 10 });
+      const result = await handlers.segnals_explain_config({ bot_id: 42 });
       const data = JSON.parse(result.content[0].text);
 
+      expect(data.warnings).toHaveLength(1);
       expect(data.warnings[0]).toContain("No high-risk");
     });
   });

@@ -2,10 +2,15 @@
  * Tests for write bot tools — two-step confirmation, risk detection, safety.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SegnalsClient } from "../../src/client.js";
 import { registerWriteBotTools } from "../../src/tools/write-bots.js";
+
+// Every API call in this file is a spy on the client; a call that reaches fetch is a bug.
+beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network call not mocked")));
+});
 
 function createMockClient(): SegnalsClient {
   return new SegnalsClient({
@@ -68,38 +73,109 @@ describe("segnals_create_bot", () => {
 });
 
 describe("segnals_update_bot", () => {
+  // What GET /bots/<id> answers for a bot with safe settings.
+  const STORED = {
+    bot: {
+      id: 1,
+      name: "Bot",
+      exchange: "bybit",
+      status: "stopped",
+      config: {
+        MARTINGALE: { ENABLED: false },
+        TRADING_PARAMS: { LEVERAGE: 5 },
+        STOP_LOSS: { TYPE: "percentage", VALUE_PCT: 0.5 },
+      },
+    },
+  };
+
   it("flags risky config in preview", async () => {
     const { handlers, client } = createTestHarness();
     const putSpy = vi.spyOn(client, "put");
+    vi.spyOn(client, "get").mockResolvedValue(STORED);
 
     const handler = handlers.get("segnals_update_bot");
     if (!handler) throw new Error("Tool not registered");
     const result = await handler({
       bot_id: 1,
-      config: { MARTINGALE_ENABLED: true, LEVERAGE: 25 },
+      config: { MARTINGALE: { ENABLED: true }, TRADING_PARAMS: { LEVERAGE: 25 } },
       confirm: false,
     });
 
     expect(putSpy).not.toHaveBeenCalled();
+    expect(client.get).toHaveBeenCalledWith("/bots/1");
     const data = JSON.parse(result.content[0].text);
-    expect(data.warnings.length).toBeGreaterThan(0);
-    expect(data.warnings.some((w: string) => w.includes("Martingale"))).toBe(true);
-    expect(data.warnings.some((w: string) => w.includes("leverage"))).toBe(true);
+    expect(data.warnings.some((w: string) => w.includes("MARTINGALE.ENABLED"))).toBe(true);
+    expect(data.warnings.some((w: string) => w.includes("25x (TRADING_PARAMS.LEVERAGE)"))).toBe(true);
   });
 
-  it("rejects exchange credentials in config", async () => {
-    const { handlers } = createTestHarness();
+  // The update names no stop-loss; the bot has one. Judging the update alone said "no stop-loss".
+  it("does not report a missing stop-loss when the stored config has one", async () => {
+    const { handlers, client } = createTestHarness();
+    vi.spyOn(client, "get").mockResolvedValue(STORED);
+
     const handler = handlers.get("segnals_update_bot");
     if (!handler) throw new Error("Tool not registered");
     const result = await handler({
       bot_id: 1,
-      config: { API_KEY: "secret123", LEVERAGE: 5 },
+      config: { TRADING_PARAMS: { LEVERAGE: 3 } },
+      confirm: false,
+    });
+
+    const data = JSON.parse(result.content[0].text);
+    expect(data.warnings).toEqual([]);
+    expect(data.warnings_basis).toContain("stored config with this update applied");
+  });
+
+  it("warns when the update sets the stop-loss to 0", async () => {
+    const { handlers, client } = createTestHarness();
+    vi.spyOn(client, "get").mockResolvedValue(STORED);
+
+    const handler = handlers.get("segnals_update_bot");
+    if (!handler) throw new Error("Tool not registered");
+    const result = await handler({
+      bot_id: 1,
+      config: { STOP_LOSS: { VALUE_PCT: 0 } },
+      confirm: false,
+    });
+
+    const data = JSON.parse(result.content[0].text);
+    expect(data.warnings).toHaveLength(1);
+    expect(data.warnings[0]).toContain("Stop-loss is 0");
+  });
+
+  it("judges the update alone, and says so, when the bot cannot be read", async () => {
+    const { handlers, client } = createTestHarness();
+    vi.spyOn(client, "get").mockRejectedValue(new Error("This key lacks the required scope"));
+
+    const handler = handlers.get("segnals_update_bot");
+    if (!handler) throw new Error("Tool not registered");
+    const result = await handler({
+      bot_id: 1,
+      config: { MARTINGALE: { ENABLED: true } },
+      confirm: false,
+    });
+
+    const data = JSON.parse(result.content[0].text);
+    expect(data.warnings).toHaveLength(1);
+    expect(data.warnings[0]).toContain("MARTINGALE.ENABLED");
+    expect(data.warnings_basis).toContain("could not be read");
+  });
+
+  it("rejects exchange credentials in config", async () => {
+    const { handlers, client } = createTestHarness();
+    const getSpy = vi.spyOn(client, "get");
+    const handler = handlers.get("segnals_update_bot");
+    if (!handler) throw new Error("Tool not registered");
+    const result = await handler({
+      bot_id: 1,
+      config: { API_KEY: "secret123", TRADING_PARAMS: { LEVERAGE: 5 } },
       confirm: false,
     });
 
     const data = JSON.parse(result.content[0].text);
     expect(data.preview).toContain("REJECTED");
     expect(data.rejected_keys).toContain("API_KEY");
+    expect(getSpy).not.toHaveBeenCalled();
   });
 
   it("calls PUT when confirm=true", async () => {
@@ -111,7 +187,7 @@ describe("segnals_update_bot", () => {
     const result = await handler({
       bot_id: 5,
       name: "My Bot",
-      config: { LEVERAGE: 3 },
+      config: { TRADING_PARAMS: { LEVERAGE: 3 } },
       confirm: true,
     });
 
@@ -119,7 +195,7 @@ describe("segnals_update_bot", () => {
     expect(data.executed).toBe(true);
     expect(client.put).toHaveBeenCalledWith("/bots/5", {
       name: "My Bot",
-      config: { LEVERAGE: 3 },
+      config: { TRADING_PARAMS: { LEVERAGE: 3 } },
       client: "mcp",
     });
   });

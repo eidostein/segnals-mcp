@@ -12,47 +12,10 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SegnalsClient } from "../client.js";
+import type { BotDetail } from "../types.js";
 import { ok, err } from "./helpers.js";
 import { SAFETY_DISCLAIMER } from "./meta.js";
-
-/**
- * Detect risky configuration combos and return human-readable warnings.
- */
-function detectRiskyConfig(config: Record<string, unknown>): string[] {
-  const warnings: string[] = [];
-
-  const martingale = config.MARTINGALE_ENABLED ?? config.martingale_enabled;
-  const leverage = Number(config.LEVERAGE ?? config.leverage ?? 1);
-
-  if (martingale && leverage > 10) {
-    warnings.push(
-      "⚠️ HIGH RISK: Martingale is enabled with leverage > 10x. " +
-        "This combination can amplify losses rapidly in volatile markets.",
-    );
-  }
-
-  if (martingale) {
-    warnings.push(
-      "⚠️ Martingale mode is enabled. This progressively increases position " +
-        "sizes after losses, which can lead to significant drawdowns.",
-    );
-  }
-
-  if (leverage > 20) {
-    warnings.push(
-      `⚠️ Very high leverage (${leverage}x). Consider reducing leverage to manage risk.`,
-    );
-  }
-
-  const slPercent = Number(config.STOP_LOSS_PERCENT ?? config.stop_loss_percent ?? 0);
-  if (slPercent === 0) {
-    warnings.push(
-      "⚠️ No stop-loss configured. Your positions have no downside protection.",
-    );
-  }
-
-  return warnings;
-}
+import { mergeConfig, riskWarnings } from "./risk.js";
 
 export function registerWriteBotTools(server: McpServer, client: SegnalsClient): void {
   // ── segnals_create_bot ✋ ──
@@ -111,6 +74,8 @@ IMPORTANT: Never ask for or accept exchange API keys/secrets — users enter tho
     `Update a bot's configuration. Requires scope: write:bots.
 
 TWO-STEP CONFIRMATION: Call without confirm to preview changes and see risk warnings. Call with confirm: true to apply.
+The config is merged into the stored one, so send only the keys you change, nested as segnals_get_bot shows them, e.g. { TRADING_PARAMS: { LEVERAGE: 5 } }.
+The preview reads the bot (scope read:bots) to warn about the config it would hold after the update: martingale enabled, leverage above 10x, stop-loss missing or 0.
 IMPORTANT: Never include exchange API keys/secrets in the config — users enter those in the dashboard.`,
     {
       bot_id: z.number().int().positive().describe("Bot ID to update"),
@@ -121,9 +86,6 @@ IMPORTANT: Never include exchange API keys/secrets in the config — users enter
     async ({ bot_id, name, config, confirm }) => {
       try {
         if (!confirm) {
-          // Preview: show what will change and flag risky combos
-          const warnings = config ? detectRiskyConfig(config) : [];
-
           // Check for forbidden keys in config
           const forbiddenKeys = ["API_KEY", "API_SECRET", "api_key", "api_secret", "MT5_PASSWORD"];
           const rejected = Object.keys(config || {}).filter(k => forbiddenKeys.includes(k));
@@ -137,6 +99,22 @@ IMPORTANT: Never include exchange API keys/secrets in the config — users enter
             });
           }
 
+          // Preview: judge the config the bot would hold after this update, not the update
+          // alone — an update that leaves STOP_LOSS out has not removed the stop-loss.
+          let warnings: string[] = [];
+          let warningsBasis = "the bot's stored config with this update applied";
+          if (config) {
+            try {
+              const data = await client.get<{ bot: BotDetail } | BotDetail>(`/bots/${bot_id}`);
+              const bot = "bot" in data ? data.bot : data;
+              warnings = riskWarnings(mergeConfig(bot.config || {}, config));
+            } catch {
+              // Without read:bots the stored config is out of reach: judge what the update names.
+              warnings = riskWarnings(config, { missingStopLoss: null });
+              warningsBasis = "only the keys in this update (the bot's stored config could not be read)";
+            }
+          }
+
           return ok({
             action: "update_bot",
             preview: `Will update bot #${bot_id}` +
@@ -148,6 +126,7 @@ IMPORTANT: Never include exchange API keys/secrets in the config — users enter
               ...(config ? { config_keys: Object.keys(config) } : {}),
             },
             warnings,
+            ...(config ? { warnings_basis: warningsBasis } : {}),
             instruction: "To proceed, call segnals_update_bot again with confirm: true",
           });
         }
