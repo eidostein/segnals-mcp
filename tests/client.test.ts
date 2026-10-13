@@ -10,7 +10,13 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { SegnalsClient } from "../src/client.js";
-import { ApiKeyError, ScopeError, RateLimitError, ServerError } from "../src/errors.js";
+import {
+  ApiKeyError,
+  ForbiddenError,
+  ScopeError,
+  RateLimitError,
+  ServerError,
+} from "../src/errors.js";
 import type { SegnalsConfig } from "../src/config.js";
 
 function createClient(overrides: Partial<SegnalsConfig> = {}): SegnalsClient {
@@ -129,6 +135,50 @@ describe("SegnalsClient", () => {
         expect((e as ScopeError).requiredScope).toBe("read:bots");
         expect((e as ScopeError).message).toContain("read:bots");
       }
+    });
+
+    it("names each scope when a route accepts one of several", async () => {
+      const body = { error: "insufficient_scope", required: ["write:bots", "write:strategies"] };
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(403, body)));
+
+      const error = await createClient()
+        .put("/bots/42", { config: {} })
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(ScopeError);
+      expect((error as ScopeError).message).toContain("`write:bots` or `write:strategies`");
+    });
+
+    // The API also answers 403 for a protected bot, a tier limit or a frozen account.
+    it.each<[Record<string, string>, string]>([
+      [{ msg: "Bot 42 is protected: an API key cannot change it." }, "Bot 42 is protected"],
+      [
+        { error: "route_denied", message: "This endpoint is not accessible via API key" },
+        "This endpoint is not accessible via API key",
+      ],
+    ])("shows the API's own message on a 403 that names no scope: %o", async (body, says) => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(403, body)));
+
+      const error = await createClient()
+        .put("/bots/42", { config: {} })
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(ForbiddenError);
+      expect(error).not.toBeInstanceOf(ScopeError);
+      expect((error as ForbiddenError).message).toContain(says);
+      expect((error as ForbiddenError).message).not.toMatch(/scope/i);
+    });
+
+    it("says a 403 gave no reason when it gave none, and only then hints at scopes", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(403, {})));
+
+      const error = await createClient()
+        .get("/bots/")
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(ForbiddenError);
+      expect((error as ForbiddenError).message).toMatch(/gave no reason/);
+      expect((error as ForbiddenError).message).toMatch(/scope/);
     });
 
     it("throws RateLimitError on 429", async () => {

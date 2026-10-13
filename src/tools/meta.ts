@@ -48,11 +48,8 @@ const TOOL_CATALOG = [
   // Marketplace (write)
   { name: "segnals_copy_strategy", scope: "write:marketplace", type: "write", confirm: true },
   { name: "segnals_publish_listing", scope: "write:marketplace", type: "write", confirm: true },
-  // News / Knowledge (read)
+  // News (read). The read:knowledge scope has no tool yet.
   { name: "segnals_get_news", scope: "read:news", type: "read" },
-  { name: "segnals_get_sentiment", scope: "read:news", type: "read" },
-  { name: "segnals_get_market_price", scope: "read:news", type: "read" },
-  { name: "segnals_search_knowledge", scope: "read:knowledge", type: "read" },
   // Copy trading
   { name: "segnals_get_copy_trading", scope: "read:account", type: "read" },
   { name: "segnals_control_copy_trading", scope: "control:bots", type: "write", confirm: true },
@@ -119,7 +116,7 @@ export function registerMetaTools(server: McpServer, client: SegnalsClient): voi
     async () => {
       return ok({
         server: "segnals-mcp",
-        version: "0.1.0",
+        version: "0.1.1",
         transport: "stdio",
         tools: TOOL_CATALOG,
         note: "Tools marked with scope '(any valid key)' work with any valid API key. Other tools require the listed scope to be granted to your key.",

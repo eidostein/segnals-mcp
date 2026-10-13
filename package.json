@@ -1,6 +1,6 @@
 {
   "name": "@segnals/mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Segnals MCP Server — manage your algorithmic trading bots, strategies, and portfolio via AI agents",
   "author": "Segnals <support@segnals.com>",
   "license": "MIT",

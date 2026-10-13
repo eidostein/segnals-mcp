@@ -1,14 +1,21 @@
 # Segnals MCP Server
 > Manage algorithmic trading bots, strategies, and portfolio via AI agents.
 
+## Install
+
+The server is not published to npm. There are two ways to run it, both with `SEGNALS_API_KEY` set in the environment:
+
+- Docker image on GHCR: `docker run --rm -i -e SEGNALS_API_KEY ghcr.io/eidostein/segnals-mcp:latest`
+- Build from source: `git clone https://github.com/eidostein/segnals-mcp.git && cd segnals-mcp && npm ci && npm run build`, then `node dist/index.js`
+
 ## Documentation
 
 - [AGENTS.md](AGENTS.md): Agent playbook — the complete guide for AI agents to onboard users and operate their trading account
 - [README.md](README.md): Project overview, quickstart, security stance, and configuration
 - [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md): Step-by-step onboarding guide
 - [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md): API keys, scopes, rotation, and security
-- [docs/TOOLS.md](docs/TOOLS.md): Complete reference for all 36 tools with examples
+- [docs/TOOLS.md](docs/TOOLS.md): Complete reference for all 33 tools with examples
 - [docs/SAFETY.md](docs/SAFETY.md): What the MCP can and cannot do, risk disclaimers
-- [docs/CONFIGURATION.md](docs/CONFIGURATION.md): Per-client setup (Claude Desktop, Code, Cursor, Docker)
+- [docs/CONFIGURATION.md](docs/CONFIGURATION.md): Per-client setup (Claude Desktop, Claude Code, Cursor), with the Docker image or a build from source
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md): Common errors and fixes
 - [docs/CHANGELOG.md](docs/CHANGELOG.md): Version history

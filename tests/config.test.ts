@@ -48,12 +48,12 @@ describe("loadConfig", () => {
 
   it("loads config from environment variables", () => {
     process.env.SEGNALS_API_KEY = "sk_live_abcdefghijklmnop";
-    process.env.SEGNALS_API_BASE = "https://staging.segnals.com/api";
+    process.env.SEGNALS_API_BASE = "https://test.segnals.com/api";
 
     const config = loadConfig();
 
     expect(config.apiKey).toBe("sk_live_abcdefghijklmnop");
-    expect(config.apiBase).toBe("https://staging.segnals.com/api");
+    expect(config.apiBase).toBe("https://test.segnals.com/api");
     expect(config.timeoutMs).toBe(30000);
     expect(config.maxRetries).toBe(3);
   });

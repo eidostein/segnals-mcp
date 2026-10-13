@@ -27,6 +27,8 @@ function extractToolHandlers(client: SegnalsClient) {
   return handlers;
 }
 
+const DASHBOARD = { total_pnl: 1500.5, win_rate: 65.2, active_bots: 3, total_bots: 5, total_trades: 120 };
+
 describe("Stats tools", () => {
   let client: SegnalsClient;
   let handlers: Record<string, (...args: any[]) => any>;
@@ -52,6 +54,85 @@ describe("Stats tools", () => {
       expect(data.win_rate).toBe(65.2);
       expect(mockFetch.mock.calls[0][0]).toContain("/bots/dashboard");
     });
+
+    it("sends the timeframe it is given", async () => {
+      const mockFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(DASHBOARD), { status: 200 }));
+      vi.stubGlobal("fetch", mockFetch);
+
+      const result = await handlers.segnals_get_dashboard({ timeframe: "24h" });
+      const data = JSON.parse(result.content[0].text);
+
+      expect(mockFetch.mock.calls[0][0]).toBe("https://api.test.segnals.com/bots/dashboard?timeframe=24h");
+      expect(data.period).toEqual({ timeframe: "24h" });
+    });
+  });
+
+  describe("segnals_get_pnl_summary", () => {
+    it("sends the timeframe it is given", async () => {
+      const mockFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(DASHBOARD), { status: 200 }));
+      vi.stubGlobal("fetch", mockFetch);
+
+      const result = await handlers.segnals_get_pnl_summary({ timeframe: "30d" });
+      const data = JSON.parse(result.content[0].text);
+
+      expect(mockFetch.mock.calls[0][0]).toBe("https://api.test.segnals.com/bots/dashboard?timeframe=30d");
+      expect(data.period).toEqual({ timeframe: "30d" });
+      expect(data.total_pnl).toBe(1500.5);
+    });
+
+    it("asks for 7 days when no period is given, and says so", async () => {
+      const mockFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(DASHBOARD), { status: 200 }));
+      vi.stubGlobal("fetch", mockFetch);
+
+      const result = await handlers.segnals_get_pnl_summary({});
+      const data = JSON.parse(result.content[0].text);
+
+      expect(mockFetch.mock.calls[0][0]).toBe("https://api.test.segnals.com/bots/dashboard?timeframe=7d");
+      expect(data.period).toEqual({ timeframe: "7d" });
+    });
+
+    it("passes a date range on", async () => {
+      const mockFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(DASHBOARD), { status: 200 }));
+      vi.stubGlobal("fetch", mockFetch);
+
+      const result = await handlers.segnals_get_pnl_summary({
+        start_date: "2026-10-01",
+        end_date: "2026-11-01",
+      });
+      const data = JSON.parse(result.content[0].text);
+
+      const query = new URL(mockFetch.mock.calls[0][0] as string).searchParams;
+      expect(query.get("start_date")).toBe("2026-10-01");
+      expect(query.get("end_date")).toBe("2026-11-01");
+      expect(data.period).toEqual({ start_date: "2026-10-01", end_date: "2026-11-01" });
+    });
+
+    // The API ignores a single bound and answers for its 7-day default.
+    it("refuses one date bound alone without calling the API", async () => {
+      const mockFetch = vi.fn();
+      vi.stubGlobal("fetch", mockFetch);
+
+      const result = await handlers.segnals_get_pnl_summary({ start_date: "2026-10-01" });
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("together");
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    // The API answers an unparseable date with the whole history and status 200.
+    it.each(["2026-02-30", "next week", "01/10/2026"])(
+      "refuses the date %s without calling the API",
+      async (bad) => {
+        const mockFetch = vi.fn();
+        vi.stubGlobal("fetch", mockFetch);
+
+        const result = await handlers.segnals_get_pnl_summary({ start_date: bad, end_date: "2026-11-01" });
+
+        expect(result.isError).toBe(true);
+        expect(result.content[0].text).toContain("ISO 8601");
+        expect(mockFetch).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe("segnals_get_bot_performance", () => {

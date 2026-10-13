@@ -10,6 +10,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SegnalsClient } from "../client.js";
 import type { BotSummary, BotDetail } from "../types.js";
 import { ok, err } from "./helpers.js";
+import { riskWarnings } from "./risk.js";
 
 export function registerBotsTools(server: McpServer, client: SegnalsClient): void {
   // ── segnals_list_bots ──
@@ -116,7 +117,7 @@ export function registerBotsTools(server: McpServer, client: SegnalsClient): voi
   // ── segnals_explain_config ──
   server.tool(
     "segnals_explain_config",
-    `Analyze and explain a bot's current configuration. Describes what each setting does, flags risky combinations (e.g., Martingale with high multiplier), and suggests improvements. Use this to understand or review a bot's strategy setup. Requires scope: read:bots. Example: segnals_explain_config({ bot_id: 42 })`,
+    `Review a bot's current configuration for risk. Returns the config together with warnings for three settings: martingale enabled (MARTINGALE.ENABLED), leverage above 10x (TRADING_PARAMS.LEVERAGE), and a stop-loss that is missing or 0 (STOP_LOSS.VALUE_PCT). Use this to review a bot's setup before starting it. Requires scope: read:bots. Example: segnals_explain_config({ bot_id: 42 })`,
     { bot_id: z.number().int().positive().describe("The ID of the bot to explain") },
     async ({ bot_id }) => {
       try {
@@ -124,21 +125,7 @@ export function registerBotsTools(server: McpServer, client: SegnalsClient): voi
         const bot = "bot" in data ? data.bot : data;
         const config = bot.config || {};
 
-        // Build explanation with risk warnings
-        const warnings: string[] = [];
-
-        if (config.martingale_enabled || config.martingale) {
-          warnings.push(
-            "⚠️ MARTINGALE IS ENABLED — this progressively increases position size after losses. " +
-              "This can lead to significant drawdowns. Ensure you have adequate capital and stop-loss limits.",
-          );
-        }
-
-        if (config.leverage && Number(config.leverage) > 10) {
-          warnings.push(
-            `⚠️ HIGH LEVERAGE (${config.leverage}x) — increases both potential profit and risk of liquidation.`,
-          );
-        }
+        const warnings = riskWarnings(config);
 
         return ok({
           bot_id: bot.id,
@@ -146,7 +133,10 @@ export function registerBotsTools(server: McpServer, client: SegnalsClient): voi
           exchange: bot.exchange,
           status: bot.status,
           config,
-          warnings: warnings.length > 0 ? warnings : ["✅ No high-risk settings detected."],
+          warnings:
+            warnings.length > 0
+              ? warnings
+              : ["✅ No high-risk settings detected (checked: martingale, leverage above 10x, stop-loss)."],
           note: "This is a software analysis of the configuration. It is not financial advice. Always review settings carefully before running a bot with real funds.",
         });
       } catch (error) {

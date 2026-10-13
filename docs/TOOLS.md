@@ -1,6 +1,6 @@
 # Tools Reference
 
-All tools are prefixed `segnals_` to avoid name collisions in multi-MCP setups.
+The server has 33 tools. All are prefixed `segnals_` to avoid name collisions in multi-MCP setups.
 
 ## Confirmation Pattern
 
@@ -51,14 +51,23 @@ This prevents accidental mutations and ensures the AI agent presents consequence
 
 ### `segnals_get_dashboard`
 - **Scope:** `read:stats`
-- **Purpose:** Get the trading dashboard overview
-- **Returns:** total PnL, win rate, active bots, equity curve
-- **Example:** `segnals_get_dashboard()`
+- **Params:** `timeframe` (optional: "24h" | "7d" | "30d" | "all", default "7d"), `start_date` and `end_date` (optional, ISO 8601, given together)
+- **Purpose:** Get the trading dashboard overview for a period
+- **Returns:** the `period` the answer covers; total PnL, win rate and trade count of that period; the equity curve; the current bot counts and the 10 latest trades (those two are not limited to the period)
+- **Example:** `segnals_get_dashboard({ timeframe: "30d" })`
 
 ### `segnals_get_pnl_summary`
 - **Scope:** `read:stats`
-- **Purpose:** Get aggregated PnL breakdown
-- **Example:** `segnals_get_pnl_summary()`
+- **Params:** `timeframe` (optional: "24h" | "7d" | "30d" | "all", default "7d"), `start_date` and `end_date` (optional, ISO 8601, given together)
+- **Purpose:** Get the PnL summary for a period
+- **Returns:** the `period` the answer covers; total PnL, win rate and trade count of that period; the current bot counts
+- **Example:** `segnals_get_pnl_summary({ start_date: "2026-10-01", end_date: "2026-11-01" })`
+
+**Periods.** With no period the two tools above report the last 7 days and say so in
+`period`. A date range takes precedence over `timeframe`. A bare date means 00:00 of that
+day, so an `end_date` of `2026-10-31` leaves the 31st out: pass `2026-11-01` to include it.
+One bound without the other, or a value that is not a date, is refused before the API is
+called.
 
 ### `segnals_get_bot_performance`
 - **Scope:** `read:stats`
@@ -101,7 +110,7 @@ This prevents accidental mutations and ensures the AI agent presents consequence
 ### `segnals_explain_config`
 - **Scope:** `read:bots`
 - **Params:** `bot_id` (required, integer)
-- **Purpose:** Analyze and explain a bot's config; flags risky settings
+- **Purpose:** Review a bot's config for risk. Returns the config with warnings for three settings: martingale enabled (`MARTINGALE.ENABLED`), leverage above 10x (`TRADING_PARAMS.LEVERAGE`), and a stop-loss that is missing or 0 (`STOP_LOSS.VALUE_PCT`)
 - **Example:** `segnals_explain_config({ bot_id: 42 })`
 
 ## Bots (Write/Control) ✋
@@ -116,9 +125,10 @@ This prevents accidental mutations and ensures the AI agent presents consequence
 ### `segnals_update_bot` ✋
 - **Scope:** `write:bots`
 - **Params:** `bot_id` (required), `name` (optional), `config` (optional), `confirm` (boolean)
-- **Purpose:** Update bot config. Preview flags risky combos (Martingale + high leverage)
+- **Purpose:** Update bot config. The config is merged into the stored one, so send only the keys you change, nested as `segnals_get_bot` shows them
+- **Preview:** Reads the bot (scope `read:bots`) and warns about the config it would hold after the update: martingale enabled, leverage above 10x, stop-loss missing or 0. `warnings_basis` says what the warnings were judged on; if the bot cannot be read, that is only the keys in the update
 - **Safety:** Rejects exchange API keys/MT5 passwords in config
-- **Example:** `segnals_update_bot({ bot_id: 42, config: { LEVERAGE: 5 }, confirm: true })`
+- **Example:** `segnals_update_bot({ bot_id: 42, config: { TRADING_PARAMS: { LEVERAGE: 5 } }, confirm: true })`
 
 ### `segnals_start_bot` ✋
 - **Scope:** `control:bots`
@@ -150,16 +160,19 @@ This prevents accidental mutations and ensures the AI agent presents consequence
 ### `segnals_create_strategy` ✋
 - **Scope:** `write:strategies`
 - **Params:** `exchange` (required), `name` (required), `config` (required), `confirm` (boolean)
-- **Purpose:** Create a fully configured strategy (bot + config in one call)
-- **Safety:** Validates config, flags risky combos, rejects credentials
+- **Purpose:** Create a fully configured strategy (bot + config in one call). The config is nested as `segnals_get_bot` shows it; settings it does not name keep the platform default
+- **Safety:** Flags martingale, leverage above 10x and a stop-loss of 0 in the config it is given; rejects credentials
 - **Disclaimer:** Risk disclaimer included in response
-- **Example:** `segnals_create_strategy({ exchange: "bybit", name: "Scalper", config: { LEVERAGE: 3 }, confirm: true })`
+- **Example:** `segnals_create_strategy({ exchange: "bybit", name: "Scalper", config: { TRADING_PARAMS: { LEVERAGE: 3 }, STOP_LOSS: { VALUE_PCT: 2 } }, confirm: true })`
 
 ### `segnals_set_indicator_filter`
 - **Scope:** `write:bots`
 - **Params:** `bot_id` (required), `filter_type` (required: "adx" | "rsi" | "ema" | "atr"), `enabled` (required), `params` (optional)
-- **Purpose:** Configure an indicator filter on a bot (non-destructive, no confirmation)
-- **Example:** `segnals_set_indicator_filter({ bot_id: 42, filter_type: "adx", enabled: true, params: { period: 14 } })`
+- **Purpose:** Switch one gate of a bot's indicator filter on or off and set its parameters (no confirmation)
+- **Writes:** `INDICATOR_FILTER.<NAME>.ENABLED` and the given params. Enabling a gate also sets the master switch `INDICATOR_FILTER.ENABLED`, which the engine needs before it runs any gate, so a gate already stored as enabled becomes active too. Disabling leaves the master switch alone
+- **Params per gate:** `adx`: `period`, `min`, `max`. `rsi`: `period`, `mode` ("filter_extremes" | "require_band"), `overbought`, `oversold`. `ema`: `fast`, `slow`. `atr`: `period`, `min_pct`, `max_pct`. Any other key, or a value of the wrong type, is refused and nothing is written
+- **Note:** All gates share `INDICATOR_FILTER.TIMEFRAME` (default "D"); change it with `segnals_update_bot`. If the bot is running, restart it to be sure the change is applied
+- **Example:** `segnals_set_indicator_filter({ bot_id: 42, filter_type: "adx", enabled: true, params: { period: 14, min: 25 } })`
 
 ## Marketplace (Read)
 
@@ -197,27 +210,15 @@ This prevents accidental mutations and ensures the AI agent presents consequence
 - **Requires:** VIP tier
 - **Example:** `segnals_publish_listing({ source_bot_id: 42, title: "My Strategy", description: "...", price_usd: 29.99, confirm: true })`
 
-## News / Knowledge
+## News
 
 ### `segnals_get_news`
 - **Scope:** `read:news`
-- **Purpose:** Get market news and events
+- **Purpose:** Get the market newsfeed
 - **Example:** `segnals_get_news()`
 
-### `segnals_get_sentiment` *(coming soon)*
-- **Scope:** `read:news`
-- **Params:** `symbol` (required, string)
-- **Purpose:** Get market sentiment for a symbol
-
-### `segnals_get_market_price` *(coming soon)*
-- **Scope:** `read:news`
-- **Params:** `symbol` (required, string)
-- **Purpose:** Get live market price
-
-### `segnals_search_knowledge` *(coming soon)*
-- **Scope:** `read:knowledge`
-- **Params:** `query` (required, string)
-- **Purpose:** Search the platform knowledge base
+Market sentiment, live prices and help search have no tool, and the `read:knowledge`
+scope has no tool yet.
 
 ## Copy Trading
 

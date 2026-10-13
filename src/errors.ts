@@ -34,16 +34,35 @@ export class ApiKeyError extends SegnalsApiError {
 }
 
 /**
- * 403 — The API key lacks a required scope.
+ * 403 — The API key lacks a required scope. Some routes accept any one of several.
  */
 export class ScopeError extends SegnalsApiError {
-  constructor(public readonly requiredScope: string) {
+  constructor(public readonly requiredScope: string | string[]) {
     super(
-      `This key lacks the required scope (\`${requiredScope}\`). Add it to your key or create a new key with this scope at Settings → API Keys.`,
+      Array.isArray(requiredScope) && requiredScope.length > 1
+        ? `This key lacks a required scope: it needs ${requiredScope.map((scope) => `\`${scope}\``).join(" or ")}. Add one to your key or create a new key with it at Settings → API Keys.`
+        : `This key lacks the required scope (\`${String(requiredScope)}\`). Add it to your key or create a new key with this scope at Settings → API Keys.`,
       403,
       "insufficient_scope",
     );
     this.name = "ScopeError";
+  }
+}
+
+/**
+ * 403 — The API refused the request for a reason other than a scope: a protected bot,
+ * a tier limit, a frozen account. Its own message says which.
+ */
+export class ForbiddenError extends SegnalsApiError {
+  constructor(detail?: string) {
+    super(
+      detail
+        ? `Segnals refused this request (403): ${detail}`
+        : "Segnals refused this request (403) and gave no reason. A scope the key lacks is the usual cause: check the key's scopes at Settings → API Keys.",
+      403,
+      "forbidden",
+    );
+    this.name = "ForbiddenError";
   }
 }
 

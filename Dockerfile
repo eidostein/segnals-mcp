@@ -12,10 +12,10 @@ FROM node:20-alpine
 LABEL maintainer="Segnals <support@segnals.com>"
 LABEL org.opencontainers.image.title="Segnals MCP Server"
 LABEL org.opencontainers.image.description="Manage algorithmic trading bots via AI agents"
-LABEL org.opencontainers.image.url="https://github.com/segnals/segnals-mcp"
-LABEL org.opencontainers.image.source="https://github.com/segnals/segnals-mcp"
+LABEL org.opencontainers.image.url="https://github.com/eidostein/segnals-mcp"
+LABEL org.opencontainers.image.source="https://github.com/eidostein/segnals-mcp"
 LABEL org.opencontainers.image.licenses="MIT"
-LABEL org.opencontainers.image.version="0.1.0"
+LABEL org.opencontainers.image.version="0.1.1"
 
 WORKDIR /app
 COPY package*.json ./
@@ -25,5 +25,5 @@ COPY docs/ ./docs/
 COPY AGENTS.md README.md LICENSE llms.txt ./
 
 # API key must be provided at runtime:
-#   docker run -e SEGNALS_API_KEY=sk_live_... ghcr.io/segnals/mcp
+#   docker run --rm -i -e SEGNALS_API_KEY ghcr.io/eidostein/segnals-mcp:latest
 ENTRYPOINT ["node", "dist/index.js"]

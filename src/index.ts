@@ -3,17 +3,16 @@
 /**
  * Segnals MCP Server — Entry Point
  *
- * Starts a stdio-based MCP server that exposes 36 tools for managing
+ * Starts a stdio-based MCP server that exposes 33 tools for managing
  * Segnals trading bots, strategies, and portfolio via AI agents.
  *
  * Configuration is read exclusively from environment variables:
  *   - SEGNALS_API_KEY (required) — your Segnals API key
  *   - SEGNALS_API_BASE (optional) — API base URL (default: https://segnals.com/api)
  *
- * Usage:
- *   npx @segnals/mcp                    # via npx
- *   node dist/index.js                  # from clone
- *   SEGNALS_API_KEY=sk_live_... npx @segnals/mcp  # inline key
+ * Usage (the package is not on npm; these are the two ways to run it):
+ *   docker run --rm -i -e SEGNALS_API_KEY ghcr.io/eidostein/segnals-mcp:latest   # GHCR image
+ *   node dist/index.js                                                           # built from a clone
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -28,13 +27,13 @@ const config = loadConfig();
 // 2. Create MCP server
 const server = new McpServer({
   name: "segnals-mcp",
-  version: "0.1.0",
+  version: "0.1.1",
 });
 
 // 3. Create API client
 const client = new SegnalsClient(config);
 
-// 4. Register all read-only tools
+// 4. Register all tools
 registerAllTools(server, client);
 
 // 5. Start stdio transport
