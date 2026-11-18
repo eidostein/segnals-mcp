@@ -257,10 +257,13 @@ The API key is a confidential credential. Never print, echo, log, or paste the u
 | "Start copy trading on Bybit" | `segnals_control_copy_trading({ action: "start", exchange: "bybit" })` ✋ |
 | "Show my notification settings" | `segnals_get_notifications` |
 | "Turn on daily reports" | `segnals_set_notifications({ preferences: { daily_report: { enabled: true } } })` |
+| "Which settings does a Bybit bot have?" | `segnals_get_settings_catalog({ engine: "bybit" })` |
+| "Show my fleet" / "What may the agent do here?" | `segnals_get_fleet` (master key) |
+| "How is the fleet doing this month?" | `segnals_fleet_report({ period: "30d" })` (master key) |
 
 ---
 
-## 7. Available Tools (34 total)
+## 7. Available Tools (37 total)
 
 Every tool takes `account`, the label of the account to act on. With one account it is
 optional; with several it is required, and the answer of a call without it lists the labels.
@@ -329,6 +332,20 @@ scope has no tool yet. If a user asks for one of these, say it is not available.
 ### Notifications (`manage:notifications`)
 - `segnals_get_notifications` — notification preferences
 - `segnals_set_notifications` — update notification preferences
+
+### Settings catalog (any valid key)
+- `segnals_get_settings_catalog` — every setting of one engine (`mt5`, `bybit`, `phemex`, `grid`): path, type, unit, range, default, meaning, `money`, `key_may_change`; `paths` narrows it, `version` says whether it changed. The resource `segnals://settings/{engine}` holds the same catalog
+
+Read it before you plan or change any bot setting. Use only the paths it lists, inside their range, and never
+one whose `key_may_change` is false. Never guess a setting name.
+
+### Fleet (master key: `manage:fleet`, `read:stats`)
+- `segnals_get_fleet` — the fleet's status, its policy (the caps a change must fit), its bots, and each allowed connection's exchange, demo or real, currency and equity
+- `segnals_fleet_report` — KPIs per bot, per fleet and in total for 24h, 7d (default) or 30d, against the period before, with each bot's health
+
+Only a master key reads these. The account holder creates it in Settings → Bot manager. A KPI that is null was
+not measured: say so, never report it as 0. Plan per account, show the person the diff, and apply only what the
+person approved.
 
 ---
 

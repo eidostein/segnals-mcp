@@ -6,9 +6,11 @@
  *
  * This test verifies:
  * 1. The server can be instantiated without errors
- * 2. All 34 tools are registered with valid names
- * 3. dist/index.js starts and answers `tools/list` over stdio with the same 34 tools,
+ * 2. All 37 tools are registered with valid names
+ * 3. dist/index.js starts and answers `tools/list` over stdio with the same 37 tools,
  *    once with SEGNALS_API_KEY and once with an accounts file of two keys
+ * 4. dist/index.js sends the server instructions and lists the resource template
+ *    segnals://settings/{engine} with its four engines
  */
 
 import { randomBytes } from "node:crypto";
@@ -21,7 +23,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SegnalsClient } from "../src/client.js";
 import { registerAllTools } from "../src/tools/index.js";
 
-const EXPECTED_TOOL_COUNT = 34;
+const EXPECTED_TOOL_COUNT = 37;
 const BUILT_SERVER = "dist/index.js";
 const DUMMY_KEY = "sk_live_smoketest00000000";
 
@@ -95,7 +97,28 @@ const transport = new StdioClientTransport({
 const mcpClient = new Client({ name: "segnals-mcp-smoke", version: "0.1.0" });
 await mcpClient.connect(transport);
 const { tools: listedTools } = await mcpClient.listTools();
+const instructions = mcpClient.getInstructions() ?? "";
+const { resourceTemplates } = await mcpClient.listResourceTemplates();
+const { resources } = await mcpClient.listResources();
 await mcpClient.close();
+
+// The built server tells the agent to read the catalog first, and offers it as a resource.
+const templates = resourceTemplates.map((template) => template.uriTemplate);
+const engines = resources.map((resource) => resource.uri);
+console.log(`\n🔍 instructions: ${instructions.length} characters; resource templates: ${templates.join(", ")}`);
+if (!instructions.includes("Read the settings catalog first") || !instructions.includes("Apply only what the person approved")) {
+  console.error(`\n❌ FAIL: the built server sends no server instructions, or other ones`);
+  process.exit(1);
+}
+if (JSON.stringify(templates) !== JSON.stringify(["segnals://settings/{engine}"])) {
+  console.error(`\n❌ FAIL: resource templates are ${JSON.stringify(templates)}`);
+  process.exit(1);
+}
+const wantEngines = ["mt5", "bybit", "phemex", "grid"].map((engine) => `segnals://settings/${engine}`);
+if (JSON.stringify(engines) !== JSON.stringify(wantEngines)) {
+  console.error(`\n❌ FAIL: resources/list answers ${JSON.stringify(engines)}`);
+  process.exit(1);
+}
 
 const listedNames = listedTools.map((tool) => tool.name);
 console.log(`\n🔍 tools/list from ${BUILT_SERVER}: ${listedNames.length} tools`);

@@ -10,13 +10,15 @@ The server is not published to npm. There are two ways to run it, both with `SEG
 
 For several accounts, set `SEGNALS_ACCOUNTS_FILE` to a local JSON file of labelled keys (`chmod 600`) instead of `SEGNALS_API_KEY`; every tool then takes `account`. See docs/CONFIGURATION.md.
 
+Before changing any bot setting, read the settings catalog (`segnals_get_settings_catalog`, or the resource `segnals://settings/{engine}`) and use only the paths it lists. A master key, which the account holder creates in Settings → Bot manager, also reads its fleet (`segnals_get_fleet`) and the fleet's report (`segnals_fleet_report`).
+
 ## Documentation
 
 - [AGENTS.md](AGENTS.md): Agent playbook — the complete guide for AI agents to onboard users and operate their trading account
 - [README.md](README.md): Project overview, quickstart, security stance, and configuration
 - [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md): Step-by-step onboarding guide
 - [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md): API keys, scopes, rotation, and security
-- [docs/TOOLS.md](docs/TOOLS.md): Complete reference for all 34 tools with examples
+- [docs/TOOLS.md](docs/TOOLS.md): Complete reference for all 37 tools and the settings resource, with examples
 - [docs/SAFETY.md](docs/SAFETY.md): What the MCP can and cannot do, risk disclaimers
 - [docs/CONFIGURATION.md](docs/CONFIGURATION.md): Per-client setup (Claude Desktop, Claude Code, Cursor), with the Docker image or a build from source
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md): Common errors and fixes

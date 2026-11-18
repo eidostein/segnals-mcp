@@ -11,6 +11,7 @@
 
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import type { SegnalsClient } from "../client.js";
 import { Accounts, AccountChoiceError } from "../accounts.js";
 import { accountRefusal, headed, type ToolResult } from "./helpers.js";
@@ -31,11 +32,16 @@ import { registerWriteBotTools } from "./write-bots.js";
 import { registerWriteStrategyTools } from "./write-strategies.js";
 import { registerWriteMarketplaceTools } from "./write-marketplace.js";
 
+// Fleet reads (SPEC 453): the settings catalog, the fleet and its report
+import { registerFleetTools } from "./fleet.js";
+
 export type Handler = (args: Record<string, unknown>, extra: unknown) => ToolResult | Promise<ToolResult>;
 
 export interface CapturedTool {
   description: string;
   shape: Record<string, z.ZodType>;
+  /** readOnlyHint / destructiveHint, when the module gave them. */
+  annotations?: ToolAnnotations;
   handler: Handler;
 }
 
@@ -55,14 +61,17 @@ function registerModules(server: McpServer, client: SegnalsClient): void {
   registerWriteBotTools(server, client);
   registerWriteStrategyTools(server, client);
   registerWriteMarketplaceTools(server, client);
+
+  // Fleet reads (SPEC 453)
+  registerFleetTools(server, client);
 }
 
 /**
  * The tools the modules register for one client, in registration order.
  *
- * @throws when a tool is registered in another form than tool(name, description, shape, handler),
- *   or has an `account` argument of its own. Both would break the account choice, so they stop
- *   the program at start.
+ * @throws when a tool is registered in another form than tool(name, description, shape, handler)
+ *   or tool(name, description, shape, annotations, handler), or has an `account` argument of its
+ *   own. Both would break the account choice, so they stop the program at start.
  */
 export function captureTools(
   client: SegnalsClient,
@@ -71,18 +80,24 @@ export function captureTools(
   const tools = new Map<string, CapturedTool>();
   const capture = {
     tool: (...args: unknown[]) => {
-      const [name, description, shape, handler] = args;
-      // Every module uses tool(name, description, shape, handler). Another form (with
-      // annotations, say) would be read wrongly here, so it stops the program at start instead.
+      // Every module uses tool(name, description, shape, handler), or the same with the
+      // annotations before the handler. Another form would be read wrongly here, so it stops the
+      // program at start instead.
+      const [name, description, shape] = args;
+      const annotations = args.length === 5 ? args[3] : undefined;
+      const handler = args[args.length - 1];
       if (
-        args.length !== 4 ||
+        (args.length !== 4 && args.length !== 5) ||
         typeof name !== "string" ||
         typeof description !== "string" ||
         typeof shape !== "object" ||
         shape === null ||
+        (args.length === 5 && (typeof annotations !== "object" || annotations === null)) ||
         typeof handler !== "function"
       ) {
-        throw new Error(`Tool ${String(name)} is not registered as tool(name, description, shape, handler).`);
+        throw new Error(
+          `Tool ${String(name)} is not registered as tool(name, description, shape, [annotations,] handler).`,
+        );
       }
       if ("account" in shape) {
         throw new Error(`Tool ${name} has its own "account" argument, which the account choice would hide.`);
@@ -90,6 +105,7 @@ export function captureTools(
       tools.set(name, {
         description,
         shape: shape as Record<string, z.ZodType>,
+        ...(annotations === undefined ? {} : { annotations: annotations as ToolAnnotations }),
         handler: handler as Handler,
       });
     },
@@ -123,24 +139,25 @@ export function registerAllTools(server: McpServer, target: SegnalsClient | Acco
 
   const copies = new Map(accounts.all.map((account) => [account.label, captureTools(account.client)]));
   const [first] = copies.values();
-  for (const [name, { description, shape }] of first) {
-    server.tool(
-      name,
-      description,
-      { ...shape, account: accountArgument(accounts) },
-      async ({ account, ...args }: Record<string, unknown>, extra: unknown) => {
-        let label: string;
-        try {
-          label = accounts.pick(account).label;
-        } catch (error) {
-          return accountRefusal(error);
-        }
-        const tool = copies.get(label)?.get(name);
-        if (tool === undefined) {
-          return accountRefusal(new AccountChoiceError(`${name} is not registered for the account "${label}".`));
-        }
-        return headed(`account: ${label}`, await tool.handler(args, extra));
-      },
-    );
+  for (const [name, { description, shape, annotations }] of first) {
+    const schema = { ...shape, account: accountArgument(accounts) };
+    const handler = async ({ account, ...args }: Record<string, unknown>, extra: unknown) => {
+      let label: string;
+      try {
+        label = accounts.pick(account).label;
+      } catch (error) {
+        return accountRefusal(error);
+      }
+      const tool = copies.get(label)?.get(name);
+      if (tool === undefined) {
+        return accountRefusal(new AccountChoiceError(`${name} is not registered for the account "${label}".`));
+      }
+      return headed(`account: ${label}`, await tool.handler(args, extra));
+    };
+    if (annotations === undefined) {
+      server.tool(name, description, schema, handler);
+    } else {
+      server.tool(name, description, schema, annotations, handler);
+    }
   }
 }

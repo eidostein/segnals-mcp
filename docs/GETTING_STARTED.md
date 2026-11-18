@@ -135,6 +135,6 @@ accounts there trade real money. Treat a staging key like a production key.
 ## Next Steps
 
 - [Authentication](AUTHENTICATION.md) — scopes, rotation, security
-- [Tools Reference](TOOLS.md) — all 34 tools with examples
+- [Tools Reference](TOOLS.md) — all 37 tools with examples
 - [Safety](SAFETY.md) — what the MCP can and cannot do
 - [Troubleshooting](TROUBLESHOOTING.md) — common errors and fixes

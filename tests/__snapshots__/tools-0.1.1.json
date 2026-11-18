@@ -1,0 +1,807 @@
+[
+  {
+    "name": "segnals_browse_marketplace",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "page": {
+          "description": "Page number (default 1)",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "per_page": {
+          "description": "Results per page (default 20, max 50)",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "exchange": {
+          "description": "Filter by exchange (e.g., 'bybit', 'mt5')",
+          "type": "string"
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_control_copy_trading",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "start",
+            "stop"
+          ],
+          "description": "Action: start or stop copy trading"
+        },
+        "exchange": {
+          "type": "string",
+          "enum": [
+            "bybit",
+            "phemex"
+          ],
+          "description": "Exchange to control copy trading for"
+        },
+        "confirm": {
+          "default": false,
+          "description": "Set to true to execute after previewing",
+          "type": "boolean"
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "exchange"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_copy_strategy",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "listing_id": {
+          "description": "Marketplace listing ID to copy",
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "confirm": {
+          "default": false,
+          "description": "Set to true to execute after previewing",
+          "type": "boolean"
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "listing_id"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_create_bot",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string",
+          "enum": [
+            "bybit",
+            "phemex",
+            "mt5"
+          ],
+          "description": "Exchange to create the bot for"
+        },
+        "confirm": {
+          "default": false,
+          "description": "Set to true to execute after previewing",
+          "type": "boolean"
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "exchange"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_create_strategy",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string",
+          "enum": [
+            "bybit",
+            "phemex",
+            "mt5"
+          ],
+          "description": "Exchange for the strategy"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Strategy name"
+        },
+        "config": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {},
+          "description": "Strategy configuration, nested as segnals_get_bot shows it, e.g. { TRADING_PARAMS: { LEVERAGE: 3 }, STOP_LOSS: { VALUE_PCT: 2 } }. Settings it does not name keep the platform default."
+        },
+        "confirm": {
+          "default": false,
+          "description": "Set to true to execute after previewing",
+          "type": "boolean"
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "exchange",
+        "name",
+        "config"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_delete_bot",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "bot_id": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "description": "Bot ID to delete"
+        },
+        "confirm": {
+          "default": false,
+          "description": "Set to true to execute after previewing",
+          "type": "boolean"
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "bot_id"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_explain_config",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "bot_id": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "description": "The ID of the bot to explain"
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "bot_id"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_get_account",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_get_bot",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "bot_id": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "description": "The ID of the bot to retrieve"
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "bot_id"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_get_bot_logs",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "bot_id": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "description": "The ID of the bot to get logs for"
+        },
+        "limit": {
+          "description": "Maximum number of log entries (default 50)",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "bot_id"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_get_bot_performance",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "bot_id": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "description": "The ID of the bot to get performance for"
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "bot_id"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_get_capabilities",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_get_copy_trading",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_get_dashboard",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "timeframe": {
+          "description": "Period to report: \"24h\", \"7d\" (default), \"30d\" or \"all\"",
+          "type": "string",
+          "enum": [
+            "24h",
+            "7d",
+            "30d",
+            "all"
+          ]
+        },
+        "start_date": {
+          "description": "Start of a custom period, ISO 8601 (e.g. 2026-10-01). Requires end_date.",
+          "type": "string"
+        },
+        "end_date": {
+          "description": "End of a custom period, ISO 8601 (e.g. 2026-11-01). Requires start_date.",
+          "type": "string"
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_get_listing",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "listing_id": {
+          "description": "The ID of the marketplace listing to retrieve",
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "listing_id"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_get_news",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_get_notifications",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_get_pnl_summary",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "timeframe": {
+          "description": "Period to report: \"24h\", \"7d\" (default), \"30d\" or \"all\"",
+          "type": "string",
+          "enum": [
+            "24h",
+            "7d",
+            "30d",
+            "all"
+          ]
+        },
+        "start_date": {
+          "description": "Start of a custom period, ISO 8601 (e.g. 2026-10-01). Requires end_date.",
+          "type": "string"
+        },
+        "end_date": {
+          "description": "End of a custom period, ISO 8601 (e.g. 2026-11-01). Requires start_date.",
+          "type": "string"
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_get_safety_disclaimer",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_get_strategy_schema",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "bot_id": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "description": "The ID of the bot to get the schema for"
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "bot_id"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_get_subscription",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_get_trades",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "bot_id": {
+          "description": "Filter trades to a specific bot ID",
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "limit": {
+          "description": "Maximum number of trades to return (default 50, max 100)",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "offset": {
+          "description": "Offset for pagination",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_list_bots",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_list_connections",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_my_listings",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_publish_listing",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "source_bot_id": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "description": "Bot ID to publish as a listing"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Listing title"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "description": "Listing description"
+        },
+        "price_usd": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Price in USD (0 = free)"
+        },
+        "confirm": {
+          "default": false,
+          "description": "Set to true to execute after previewing",
+          "type": "boolean"
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_bot_id",
+        "title",
+        "description",
+        "price_usd"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_restart_bot",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "bot_id": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "description": "Bot ID to restart"
+        },
+        "confirm": {
+          "default": false,
+          "description": "Set to true to execute after previewing",
+          "type": "boolean"
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "bot_id"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_set_indicator_filter",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "bot_id": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "description": "Bot ID to configure"
+        },
+        "filter_type": {
+          "type": "string",
+          "enum": [
+            "adx",
+            "rsi",
+            "ema",
+            "atr"
+          ],
+          "description": "Indicator gate to configure"
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Switch the gate on or off"
+        },
+        "params": {
+          "description": "Gate parameters, e.g. { period: 14, min: 25 } for adx. Keys are case-insensitive.",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "bot_id",
+        "filter_type",
+        "enabled"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_set_notifications",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "preferences": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {},
+          "description": "Notification preferences to update. Keys: system_reminders (boolean), daily_report ({ enabled, hour_utc }), performance_alerts ({ enabled, threshold_pnl_usd }), weekly_summary ({ enabled, day, hour_utc }), custom_alerts"
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "preferences"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_start_bot",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "bot_id": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "description": "Bot ID to start"
+        },
+        "confirm": {
+          "default": false,
+          "description": "Set to true to execute after previewing",
+          "type": "boolean"
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "bot_id"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_stop_bot",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "bot_id": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "description": "Bot ID to stop"
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "bot_id"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_update_bot",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "bot_id": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "description": "Bot ID to update"
+        },
+        "name": {
+          "description": "New bot name",
+          "type": "string"
+        },
+        "config": {
+          "description": "Configuration key-value pairs to update",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
+        "confirm": {
+          "default": false,
+          "description": "Set to true to execute after previewing",
+          "type": "boolean"
+        },
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "bot_id"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "segnals_whoami",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "account": {
+          "description": "The account to act on. Optional: this program holds one account, \"default\".",
+          "type": "string"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  }
+]
