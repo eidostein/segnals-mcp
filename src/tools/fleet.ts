@@ -73,12 +73,21 @@ const NEXT_STEP = new Map<string, string>(
 const TELL_THE_PERSON = "Tell the person what Segnals answered; do not send the same call again unchanged.";
 
 /**
- * A 404 from a fleet route, to a key. While the bot manager is off a key never gets one: a master
- * key is refused `fleet_manager_off` and a manual key `insufficient_scope`. So the route is missing.
+ * A 404 from GET /fleet, to a key. While the bot manager is off a key never gets one: a master key is
+ * refused `fleet_manager_off` and a manual key `insufficient_scope` (no manual key holds manage:fleet).
+ * So the route is missing.
  */
 const FLEET_ROUTES_MISSING =
   "This server has no fleet routes: it predates the bot manager (SPEC 453). Tell the person; " +
   "nothing on this account can be read as a fleet here.";
+
+/**
+ * A 404 from GET /fleet/report, to a key. Unlike GET /fleet, a manual key holding read:stats passes the
+ * scope check and gets the 404 of a switched-off bot manager; with it on, it would get `master_key_only`.
+ */
+const REPORT_NOT_FOUND =
+  "The fleet report answered 404: the server's bot manager is switched off, or the server predates it (SPEC 453). " +
+  "Either way this key reads no fleet report here; only a master key does, while the bot manager is on. Tell the person.";
 
 /** The scopes a ScopeError names, without the advice to add one to the key: a manual key never holds manage:fleet. */
 function scopeText(required: string | string[]): string {
@@ -215,7 +224,7 @@ export function registerFleetTools(server: McpServer, client: SegnalsClient): vo
       try {
         return ok(await client.get<unknown>("/fleet/report", { period: period ?? DEFAULT_REPORT_PERIOD }));
       } catch (error) {
-        return fleetError(error);
+        return fleetError(error, REPORT_NOT_FOUND);
       }
     },
   );

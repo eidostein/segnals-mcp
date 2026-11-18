@@ -376,6 +376,20 @@ describe("Fleet reads", () => {
       ]);
     });
 
+    it("reads a 404 as a switched-off bot manager or an older server, never as a missing route only", async () => {
+      // A manual key holding read:stats passes the scope check and meets `_switch_on`'s 404 while the bot
+      // manager is off (segnals-test api_fleet_reports.get_fleet_report), unlike GET /fleet.
+      answer(404, { error: "not_found", message: "Not found" });
+      const mcp = await connect();
+
+      const report = textOf(await call(mcp, "segnals_fleet_report"));
+      expect(report).toContain("What to do next: The fleet report answered 404: the server's bot manager is switched off, or the server predates it");
+      expect(report).not.toContain("This server has no fleet routes");
+
+      const fleet = textOf(await call(mcp, "segnals_get_fleet"));
+      expect(fleet).toContain("What to do next: This server has no fleet routes");
+    });
+
     it("says what to do next when the key is not a master key", async () => {
       answer(403, { error: "master_key_only", message: "Only a master key or the dashboard reads the fleet report." });
       const mcp = await connect();
