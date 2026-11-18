@@ -7,8 +7,10 @@ The server has 34 tools. All are prefixed `segnals_` to avoid name collisions in
 Every tool takes `account`, the label of the account to act on (see
 [Several accounts](CONFIGURATION.md#several-accounts)). With one account it is optional.
 With several it is required, and a call without it, or with a label the program does not
-hold, is refused with the list of labels. Every answer starts with a line naming the
-account it acted on, for example `account: vip-a`. No call acts on two accounts.
+hold, is refused with the list of labels. The exception is `segnals_list_accounts`, which
+lists every account and where `account` only narrows the list. Every answer starts with a
+line naming the account it acted on, for example `account: vip-a`. No call acts on two
+accounts.
 
 ## Confirmation Pattern
 

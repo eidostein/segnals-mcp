@@ -190,6 +190,7 @@ and the rule, never a key.
 What changes for the agent:
 - Every tool takes `account`, the label. With several accounts it is required: a call
   without it, or with a label the file does not hold, is refused with the list of labels.
+  Only `segnals_list_accounts` needs none: it lists every account.
 - Every answer starts with the label it acted on, for example `account: vip-a`.
 - `segnals_list_accounts` lists the labels, each key's mode (`live` or `test`, read from
   the prefix; never the key) and each account's fleet.

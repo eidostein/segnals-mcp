@@ -8,6 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
+import { randomBytes } from "node:crypto";
 import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -17,12 +18,13 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { Accounts } from "../src/accounts.js";
 import { SegnalsClient } from "../src/client.js";
 import { readAccountsFile } from "../src/config.js";
-import { registerAllTools } from "../src/tools/index.js";
+import { z } from "zod";
+import { captureTools, registerAllTools } from "../src/tools/index.js";
 import { TOOL_CATALOG } from "../src/tools/meta.js";
 
-// Fake keys. The "_" inside keeps them out of secret scanners' Stripe pattern (sk_live_ + 24 alphanumerics).
-const KEY_A = "sk_live_plantedkey_AAAAAAAAAAAAAAAA";
-const KEY_B = "sk_test_plantedkey_BBBBBBBBBBBBBBBB";
+// Fake keys, made at run time so no key-shaped literal sits in the repository.
+const KEY_A = `sk_live_plantedkey_${randomBytes(12).toString("hex")}`;
+const KEY_B = `sk_test_plantedkey_${randomBytes(12).toString("hex")}`;
 
 /** Every tool but this one acts on one account; it lists them all, so `account` only filters it. */
 const LISTS_ACCOUNTS = "segnals_list_accounts";
@@ -289,14 +291,62 @@ describe("Several accounts", () => {
       outputs.push(textOf((await client.callTool({ name, arguments: { account: "a" } })) as ToolAnswer));
     }
 
-    // The walk produced answers from the API's errors and from the refusals, and requests were sent.
-    expect(outputs.length).toBeGreaterThan(tools.length * 5);
-    expect(fetchMock.mock.calls.length).toBeGreaterThan(0);
+    // The walk reached every kind of answer: each API error the client maps, a network failure,
+    // the refusals, and answers that carry data. Requests were sent with both keys.
     const everything = [...outputs, ...logged].join("\n");
-    expect(everything).toContain("Rate limit");
-    expect(everything).toContain("This program holds 2 accounts");
+    for (const kind of [
+      "Your Segnals API key is invalid or expired", // 401
+      "Segnals refused this request (403)", // 403
+      "Resource not found", // 404
+      "Rate limit reached", // 429
+      "Segnals API returned a server error (500)", // 500
+      "Could not reach the Segnals API", // network
+      "This program holds 2 accounts", // no account
+      "No account has that label", // unknown label, a key among them
+      '"status 200"', // an answer passed through
+    ]) {
+      expect(everything, kind).toContain(kind);
+    }
+    expect(new Set(headersSent())).toEqual(new Set([`Bearer ${KEY_A}`, `Bearer ${KEY_B}`]));
     expect(everything).not.toContain(KEY_A);
     expect(everything).not.toContain(KEY_B);
     expect(everything).not.toContain("plantedkey");
+  });
+});
+
+describe("Capturing the tools of one account", () => {
+  const client = new SegnalsClient({
+    apiKey: KEY_A,
+    apiBase: "https://api.test.segnals.com",
+    timeoutMs: 5000,
+    maxRetries: 0,
+  });
+
+  it("reads every module's tool in the four-argument form, none with its own account argument", () => {
+    const tools = captureTools(client);
+    expect([...tools.keys()].sort()).toEqual(
+      TOOL_CATALOG.map((tool) => tool.name)
+        .filter((name) => name !== LISTS_ACCOUNTS)
+        .sort(),
+    );
+  });
+
+  it("stops at start on a tool registered with annotations, or with an account argument of its own", () => {
+    const answer = async () => ({ content: [] });
+    const withAnnotations = (server: McpServer) => {
+      server.tool("segnals_x", "x", { id: z.number() }, { readOnlyHint: true }, answer);
+    };
+    const withoutDescription = (server: McpServer) => {
+      server.tool("segnals_x", { id: z.number() }, answer);
+    };
+    const withAccount = (server: McpServer) => {
+      server.tool("segnals_x", "x", { account: z.string() }, answer);
+    };
+
+    expect(() => captureTools(client, withAnnotations)).toThrow(
+      "Tool segnals_x is not registered as tool(name, description, shape, handler).",
+    );
+    expect(() => captureTools(client, withoutDescription)).toThrow("is not registered as tool(");
+    expect(() => captureTools(client, withAccount)).toThrow('Tool segnals_x has its own "account" argument');
   });
 });

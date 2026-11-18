@@ -193,7 +193,7 @@ chmod 600 ~/.config/segnals/accounts.json
 export SEGNALS_ACCOUNTS_FILE=~/.config/segnals/accounts.json
 node dist/index.js
 ```
-Every tool then takes `account`, the label, and refuses a call without it, listing the labels. Every answer starts with the label it acted on, and `segnals_list_accounts` shows each label and its key's mode, never the key. Setting both `SEGNALS_ACCOUNTS_FILE` and `SEGNALS_API_KEY` is refused. For client configs and the file's rules, see [Several accounts](docs/CONFIGURATION.md#several-accounts).
+Every tool then takes `account`, the label, and refuses a call without it, listing the labels; only `segnals_list_accounts` needs none, since it lists every label and its key's mode (never the key). Every answer starts with the label it acted on. Setting both `SEGNALS_ACCOUNTS_FILE` and `SEGNALS_API_KEY` is refused. For client configs and the file's rules, see [Several accounts](docs/CONFIGURATION.md#several-accounts).
 
 ---
 
@@ -272,7 +272,7 @@ For detailed information, see the [Authentication Documentation](docs/AUTHENTICA
 
 ## Tool Reference
 
-The following table summarizes the **34 tools** exposed by the Segnals MCP server. Every tool takes `account`, the label of the account to act on: optional with one account, required with several.
+The following table summarizes the **34 tools** exposed by the Segnals MCP server. Every tool takes `account`, the label of the account to act on: optional with one account, required with several (except `segnals_list_accounts`, where it only narrows the list).
 
 | Tool Name | Operation | Description | Required Scope | Confirmation |
 |---|---|---|---|---|

@@ -264,6 +264,7 @@ The API key is a confidential credential. Never print, echo, log, or paste the u
 
 Every tool takes `account`, the label of the account to act on. With one account it is
 optional; with several it is required, and the answer of a call without it lists the labels.
+The exception is `segnals_list_accounts`: it lists every account, and `account` only narrows it.
 Every answer starts with the label it acted on. Never act on an account the user did not name.
 
 ### Accounts (local, no scope)

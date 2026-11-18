@@ -4,14 +4,15 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { randomBytes } from "node:crypto";
 import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AccountsFileError, loadAccounts, readAccountsFile } from "../src/config.js";
 
-// Fake keys. The "_" inside keeps them out of secret scanners' Stripe pattern (sk_live_ + 24 alphanumerics).
-const KEY_A = "sk_test_plantedkey_AAAAAAAAAAAAAAAA";
-const KEY_B = "sk_live_plantedkey_BBBBBBBBBBBBBBBB";
+// Fake keys, made at run time so no key-shaped literal sits in the repository.
+const KEY_A = `sk_test_plantedkey_${randomBytes(12).toString("hex")}`;
+const KEY_B = `sk_live_plantedkey_${randomBytes(12).toString("hex")}`;
 
 let dir: string;
 let files = 0;
@@ -122,7 +123,10 @@ describe("readAccountsFile", () => {
     } catch (error) {
       parseMessage = (error as Error).message;
     }
-    expect(parseMessage).toContain("plantedkey");
+    // Node 20 (CI's) quotes the source in the message, so passing it on would leak; Node 18 does not.
+    if (Number(process.versions.node.split(".")[0]) >= 20) {
+      expect(parseMessage).toContain("plantedkey");
+    }
 
     const files = [
       accountsFile(quoted),

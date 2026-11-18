@@ -11,6 +11,7 @@
  *    once with SEGNALS_API_KEY and once with an accounts file of two keys
  */
 
+import { randomBytes } from "node:crypto";
 import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -123,7 +124,8 @@ const labels = ["smoke-a", "smoke-b"];
 try {
   writeFileSync(
     accountsFile,
-    JSON.stringify({ accounts: labels.map((label, i) => ({ label, key: `sk_test_smoketest${i}0000000000` })) }),
+    // Fake keys made at run time; nothing is sent with them.
+    JSON.stringify({ accounts: labels.map((label) => ({ label, key: `sk_test_smoke_${randomBytes(12).toString("hex")}` })) }),
   );
   chmodSync(accountsFile, 0o600);
   const multi = new Client({ name: "segnals-mcp-smoke", version: "0.1.0" });

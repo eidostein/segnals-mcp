@@ -31,9 +31,9 @@ import { registerWriteBotTools } from "./write-bots.js";
 import { registerWriteStrategyTools } from "./write-strategies.js";
 import { registerWriteMarketplaceTools } from "./write-marketplace.js";
 
-type Handler = (args: Record<string, unknown>, extra: unknown) => ToolResult | Promise<ToolResult>;
+export type Handler = (args: Record<string, unknown>, extra: unknown) => ToolResult | Promise<ToolResult>;
 
-interface CapturedTool {
+export interface CapturedTool {
   description: string;
   shape: Record<string, z.ZodTypeAny>;
   handler: Handler;
@@ -57,14 +57,23 @@ function registerModules(server: McpServer, client: SegnalsClient): void {
   registerWriteMarketplaceTools(server, client);
 }
 
-/** The tools the modules register for one client, in registration order. */
-function captureTools(client: SegnalsClient): Map<string, CapturedTool> {
+/**
+ * The tools the modules register for one client, in registration order.
+ *
+ * @throws when a tool is registered in another form than tool(name, description, shape, handler),
+ *   or has an `account` argument of its own. Both would break the account choice, so they stop
+ *   the program at start.
+ */
+export function captureTools(
+  client: SegnalsClient,
+  register: (server: McpServer, client: SegnalsClient) => void = registerModules,
+): Map<string, CapturedTool> {
   const tools = new Map<string, CapturedTool>();
   const capture = {
     tool: (...args: unknown[]) => {
       const [name, description, shape, handler] = args;
-      // Every module uses tool(name, description, shape, handler); anything else would lose
-      // its arguments here, so it stops the program at start instead.
+      // Every module uses tool(name, description, shape, handler). Another form (with
+      // annotations, say) would be read wrongly here, so it stops the program at start instead.
       if (
         args.length !== 4 ||
         typeof name !== "string" ||
@@ -85,7 +94,7 @@ function captureTools(client: SegnalsClient): Map<string, CapturedTool> {
       });
     },
   } as unknown as McpServer;
-  registerModules(capture, client);
+  register(capture, client);
   return tools;
 }
 

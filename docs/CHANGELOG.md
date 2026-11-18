@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Several accounts in one server. `SEGNALS_ACCOUNTS_FILE` names a local JSON file of labelled keys, one per account, used instead of `SEGNALS_API_KEY`. The server refuses to start when the group or others have any permission on the file (`chmod 600`), when a label repeats or looks like a key, when a key is malformed, when two labels hold one key, and when `SEGNALS_API_KEY` is set as well. `SEGNALS_API_KEY` alone works as before, as the account `default`
-- Every tool takes `account`. It is optional with one account and required with several: a call without it, or with a label the server does not hold, is refused with the list of labels and sends nothing. Each account has its own API client, so a call sends only the key of the account it names. Every answer starts with the label it acted on
+- Every tool takes `account`. It is optional with one account and required with several (`segnals_list_accounts` excepted, where it only narrows the list): a call without it, or with a label the server does not hold, is refused with the list of labels and sends nothing. Each account has its own API client, so a call sends only the key of the account it names. Every answer starts with the label it acted on
 - `segnals_list_accounts`: the labels, each key's mode (`live` or `test`, from its prefix; never the key) and what `GET /fleet` answers per account, or why it cannot. The server has 34 tools
 
 ## [0.1.1] — 2026-10-13
