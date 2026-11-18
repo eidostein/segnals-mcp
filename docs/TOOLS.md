@@ -325,7 +325,7 @@ A master key changes its fleet only through plans: check a plan, show the person
 ### `segnals_apply_fleet_plan` ✋
 - **Scope:** `manage:fleet`
 - **Params:** `plan_id` (required), `confirm` (default false)
-- **Purpose:** Without `confirm`, a preview: it reads the stored plan with a GET and sends nothing that writes. With `confirm: true`, one `POST /fleet/plans/<id>/apply` with the header `Idempotency-Key: segnals-mcp-apply-<plan_id>`, so applying the same plan again answers the first result and does nothing more. The client never resends it; after a 5xx or a timeout, read the plan before applying again. Carries `destructiveHint`
+- **Purpose:** Without `confirm`, a preview: it reads the stored plan with a GET and sends nothing that writes. With `confirm: true`, one `POST /fleet/plans/<id>/apply` with the header `Idempotency-Key: segnals-mcp-apply-<plan_id>`, so applying the same plan again answers the first result and does nothing more. The client never resends it and waits 50 s for it; after a 5xx or a timeout, read the plan: follow it if it is `applying` or later, and apply again only if it is still `checked` after a minute. Carries `destructiveHint`
 - **Returns:** the preview (`preview`, `can_apply`, `instruction`, `plan`), or the applied plan with its status: `applying` (starts are released in batches, 25 a minute by default), `applied`, `applied_with_errors` or `awaiting_confirmation` (the account holder confirms in Settings → Bot manager)
 - **Errors:** `plan_stale` (a bot changed since the check; nothing applied), a 409 or 410 for a plan that is not `checked`, `rate_limited` (10 applies an hour), `fleet_stopped_all`, and a 404 when the server has no apply route
 - **Example:** `segnals_apply_fleet_plan({ plan_id: "<plan_id>", confirm: true })`
@@ -334,5 +334,5 @@ A master key changes its fleet only through plans: check a plan, show the person
 - **Scope:** `manage:fleet`
 - **Purpose:** `POST /fleet/stop-all`: stops every running bot of the fleet through the dashboard's stop, cancels plans not yet applied, and leaves the fleet `stopped_all` until the account holder resumes it. No preview: it only reduces risk. Carries `destructiveHint`
 - **Returns:** the bots stopped and those skipped (a protected bot, and for a test key a real-money bot), which still run
-- **Errors:** `rate_limited` (3 stop-alls an hour). Sent once: after a 5xx or a timeout, read `segnals_get_fleet` and send it again if the fleet is not `stopped_all`. On any error, assume the fleet still runs and tell the person: the account holder can stop each bot from the dashboard
+- **Errors:** `rate_limited` (3 stop-alls an hour). Sent once, with 50 s to answer: after a 5xx or a timeout, read `segnals_get_fleet` and send it again only if the fleet is not `stopped_all`. On any error, assume the fleet still runs and tell the person: the account holder can stop each bot from the dashboard
 - **Example:** `segnals_stop_all_fleet()`

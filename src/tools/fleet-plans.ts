@@ -261,13 +261,17 @@ function planError(error: unknown, options: PlanErrorOptions): ToolResult {
   return result;
 }
 
-/** An apply or a stop all is sent once, with this long to answer: its outcome is read, never guessed by a resend. */
-const WRITE_TIMEOUT_MS = 120_000;
+/**
+ * An apply or a stop all is sent once, with this long to answer: its outcome is read, never guessed by a resend.
+ * Under the 60 s an MCP host waits for a tool by default, so the "outcome unknown" answer below reaches the
+ * person instead of the host's own timeout.
+ */
+const WRITE_TIMEOUT_MS = 50_000;
 
 const APPLY_OUTCOME_UNKNOWN =
   "Segnals may or may not have received this apply. Read the plan with segnals_get_fleet_plan before anything " +
-  "else: if it is still checked, apply it again with confirm: true (the same Idempotency-Key makes a second apply " +
-  "of this plan safe); if it is applying or later, follow it and do not apply it again.";
+  "else: if it is applying or later, follow it and do not apply it again; if it is still checked after a minute, " +
+  "apply it again with confirm: true (the same Idempotency-Key makes a second apply of this plan safe).";
 const STOP_ALL_OUTCOME_UNKNOWN =
   "Segnals may or may not have received this stop all. Read the fleet with segnals_get_fleet: if its status is " +
   "not stopped_all, send segnals_stop_all_fleet again.";
@@ -386,7 +390,7 @@ The apply is sent once and carries an Idempotency-Key made from the plan id, so 
   // ── segnals_stop_all_fleet ──
   server.tool(
     "segnals_stop_all_fleet",
-    `Stop every running, starting or warming-up bot of this account's fleet at once, through the same stop as the dashboard's Stop, and cancel the fleet's plans not yet applied. No preview: it only reduces risk, so use it at once when the person asks to stop everything or something is going wrong. Bots outside the fleet are not touched. With this key, a protected bot, and for a test key a real-money bot, is skipped and named in the answer: tell the person those still run. Open positions are handled as the dashboard's Stop handles them. Afterwards the fleet is stopped_all: every plan that starts a bot is refused until the account holder resumes the fleet in Settings → Bot manager. You cannot resume it. A fleet may stop all 3 times an hour. Requires: a master key (manage:fleet). Example: segnals_stop_all_fleet()`,
+    `Stop every running, starting or warming-up bot of this account's fleet at once, through the same stop as the dashboard's Stop, and cancel the fleet's plans not yet applied. No preview: it only reduces risk, so use it at once when the person asks to stop everything or something is going wrong. Bots outside the fleet are not touched. With this key, a protected bot, and for a test key a real-money bot, is skipped and named in the answer: tell the person those still run. Open positions are handled as the dashboard's Stop handles them. Afterwards the fleet is stopped_all: every plan that starts a bot is refused until the account holder resumes the fleet in Settings → Bot manager. You cannot resume it. A fleet may stop all 3 times an hour. If Segnals does not answer, read segnals_get_fleet; send it again only if the status is not stopped_all. Requires: a master key (manage:fleet). Example: segnals_stop_all_fleet()`,
     {},
     { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     async (): Promise<ToolResult> => {
