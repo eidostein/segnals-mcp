@@ -47,14 +47,22 @@ export const USE_FLEET_TOOLS =
 export const USE_FLEET_PLANS = "use_fleet_plans";
 
 /**
+ * True for the API's 403 `use_fleet_plans`. A tool that reads something only for its preview, and
+ * goes on without it when the read fails, still answers this one with err(): otherwise a master key
+ * would get a preview of something it can never do.
+ */
+export function isUseFleetPlans(error: unknown): boolean {
+  return error instanceof SegnalsApiError && error.apiError === USE_FLEET_PLANS;
+}
+
+/**
  * Format an error tool result with a clear message.
  *
  * A 403 `use_fleet_plans` (a master key on a route outside its allow-list) also names the fleet tools.
  */
 export function err(error: unknown): ToolResult {
   if (error instanceof SegnalsApiError) {
-    const text =
-      error.apiError === USE_FLEET_PLANS ? `${error.message}\n\nWhat to do next: ${USE_FLEET_TOOLS}` : error.message;
+    const text = isUseFleetPlans(error) ? `${error.message}\n\nWhat to do next: ${USE_FLEET_TOOLS}` : error.message;
     return {
       content: [{ type: "text" as const, text }],
       isError: true,

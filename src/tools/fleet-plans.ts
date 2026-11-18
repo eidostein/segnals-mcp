@@ -27,9 +27,8 @@ export const MOST_ITEMS = 500;
 const MOST_ID = 2 ** 31 - 1;
 
 /**
- * The `Idempotency-Key` of the apply of one plan. It is derived from the plan id alone, so a repeated
- * apply of the same plan (a retry after a timeout, or a second call) gets the first result and does
- * nothing more (§3.5).
+ * The `Idempotency-Key` of the apply of one plan. It is derived from the plan id alone, so a second
+ * apply of the same plan gets the first result and does nothing more (§3.5).
  */
 export function idempotencyKey(planId: string): string {
   return `segnals-mcp-apply-${planId}`;
@@ -46,11 +45,11 @@ const config = z
 
 /**
  * One change, as the API's plan check reads it (segnals-test `app/services/fleet/plans.py`, `ITEM_FIELDS`).
- * A field the action does not take is dropped here, as the API drops it: `risk_acknowledged` never
- * reaches a plan (§3.6).
+ * A field the action does not take is refused here, by name, before anything is sent: the agent learns
+ * that it was not taken, and `risk_acknowledged` never leaves this program (§3.6).
  */
 export const PLAN_ITEM = z.discriminatedUnion("action", [
-  z.object({
+  z.strictObject({
     action: z.literal("create"),
     exchange: z.enum(PLAN_EXCHANGES).describe("The new bot's exchange: mt5, bybit or phemex"),
     connection_id: z
@@ -58,19 +57,55 @@ export const PLAN_ITEM = z.discriminatedUnion("action", [
       .min(1)
       .max(64)
       .describe("The account it trades on: one of the fleet's allowed connections (segnals_get_fleet connections[].id)"),
-    name: z.string().max(100).optional().describe("The bot's name"),
+    name: z.string().max(100).nullable().optional().describe("The bot's name"),
     from: z
-      .union([z.literal("default"), z.object({ bot_id: botId })])
+      .union([z.literal("default"), z.strictObject({ bot_id: botId })])
       .optional()
       .describe('"default" (the engine\'s default config, the default) or { bot_id } to copy a fleet bot of the same engine'),
     config: config.optional(),
     start: z.boolean().optional().describe("true to start it once created. Default false: it stays stopped"),
   }),
-  z.object({ action: z.literal("update"), bot_id: botId, config }),
-  z.object({ action: z.literal("start"), bot_id: botId }),
-  z.object({ action: z.literal("stop"), bot_id: botId }),
-  z.object({ action: z.literal("delete"), bot_id: botId }),
+  z.strictObject({ action: z.literal("update"), bot_id: botId, config }),
+  z.strictObject({ action: z.literal("start"), bot_id: botId }),
+  z.strictObject({ action: z.literal("stop"), bot_id: botId }),
+  z.strictObject({ action: z.literal("delete"), bot_id: botId }),
 ]);
+
+/**
+ * The API's credential field names, lowercased: segnals-test `API_KEY_CREDENTIAL_FIELDS`
+ * (`app/utils/api_key_auth.py`), which is `SENSITIVE_CONFIG_KEYS` and `CONNECTION_SECRET_FIELDS`
+ * (`app/services/crypto_utils.py`). The API refuses a plan that holds one (`credential_fields_not_allowed`);
+ * this program refuses it first, so the value never leaves it.
+ */
+const CREDENTIAL_FIELDS = new Set([
+  "api_key",
+  "api_secret",
+  "mt5_login",
+  "mt5_password",
+  "mt5_server",
+  "password",
+  "secret",
+  "api_passphrase",
+  "passphrase",
+]);
+
+/** The paths of every credential field in `value`, at any depth, as the API's `credential_field_paths` finds them. */
+export function credentialPaths(value: unknown, root: string): string[] {
+  const found: string[] = [];
+  const pending: [string, unknown][] = [[root, value]];
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    const [trail, node] = next;
+    if (Array.isArray(node)) {
+      node.forEach((child, index) => pending.push([`${trail}[${index}]`, child]));
+    } else if (typeof node === "object" && node !== null) {
+      for (const [name, child] of Object.entries(node)) {
+        if (CREDENTIAL_FIELDS.has(name.trim().toLowerCase())) found.push(`${trail}.${name}`);
+        else pending.push([`${trail}.${name}`, child]);
+      }
+    }
+  }
+  return found.sort();
+}
 
 const planId = z.uuid().describe("The plan_id segnals_plan_fleet answered, for this same account");
 
@@ -195,13 +230,15 @@ interface PlanErrorOptions {
   notVisible?: string;
   /** A 409 or 410 with no code of its own. */
   conflict?: string;
+  /** A 5xx or a network failure of a write sent once: what was done is unknown, and must be read. */
+  unknownOutcome?: string;
   /** Said after the next step of every error of this tool. */
   also?: string;
 }
 
 /** A plan tool's error: what happened, then what to do next. */
 function planError(error: unknown, options: PlanErrorOptions): ToolResult {
-  const { routeMissing, notVisible = PLAN_NOT_VISIBLE, conflict, also } = options;
+  const { routeMissing, notVisible = PLAN_NOT_VISIBLE, conflict, unknownOutcome, also } = options;
   let result: ToolResult;
   if (error instanceof SegnalsApiError && error.statusCode === 404) {
     result = refusal(error.message, error.apiError === undefined ? routeMissing : notVisible);
@@ -213,11 +250,27 @@ function planError(error: unknown, options: PlanErrorOptions): ToolResult {
   ) {
     result = refusal(error.message, conflict);
   } else {
-    result = fleetError(error, { notFound: routeMissing, more: PLAN_NEXT_STEP, what: "request" });
+    const more = new Map(PLAN_NEXT_STEP);
+    if (unknownOutcome !== undefined) {
+      more.set("server_error", unknownOutcome);
+      more.set("network_error", unknownOutcome);
+    }
+    result = fleetError(error, { notFound: routeMissing, more, what: "request" });
   }
   if (also !== undefined) result.content[0].text += ` ${also}`;
   return result;
 }
+
+/** An apply or a stop all is sent once, with this long to answer: its outcome is read, never guessed by a resend. */
+const WRITE_TIMEOUT_MS = 120_000;
+
+const APPLY_OUTCOME_UNKNOWN =
+  "Segnals may or may not have received this apply. Read the plan with segnals_get_fleet_plan before anything " +
+  "else: if it is still checked, apply it again with confirm: true (the same Idempotency-Key makes a second apply " +
+  "of this plan safe); if it is applying or later, follow it and do not apply it again.";
+const STOP_ALL_OUTCOME_UNKNOWN =
+  "Segnals may or may not have received this stop all. Read the fleet with segnals_get_fleet: if its status is " +
+  "not stopped_all, send segnals_stop_all_fleet again.";
 
 const NO_PLAN_ROUTES =
   "This server has no plan routes: it predates the plan check (SPEC 453). Tell the person; nothing was planned or changed.";
@@ -245,6 +298,14 @@ export function registerFleetPlanTools(server: McpServer, client: SegnalsClient)
     // It changes nothing on the account (§3.9): the stored plan is the check's answer, and only an apply acts on it.
     { readOnlyHint: true, destructiveHint: false, idempotentHint: false },
     async ({ items }): Promise<ToolResult> => {
+      const credentials = credentialPaths(items, "items");
+      if (credentials.length > 0) {
+        return refusal(
+          `Not sent: a plan never holds a credential, and this one names ${credentials.join(", ")}.`,
+          "Take those fields out. The account holder enters credentials in the dashboard (Settings → Connections); " +
+            "a new bot trades on its item's connection_id. Never ask the person for a key, secret or password.",
+        );
+      }
       try {
         const plan = await client.post<Plan>("/fleet/plans", { items });
         const id = typeof plan.plan_id === "string" ? plan.plan_id : "<plan_id>";
@@ -277,7 +338,7 @@ export function registerFleetPlanTools(server: McpServer, client: SegnalsClient)
     `Apply a checked plan of this account's fleet, exactly as it was checked. This changes bots: it creates, updates, starts, stops and deletes them as the plan says.
 
 TWO-STEP CONFIRMATION: call without confirm to preview: it reads the stored plan and changes nothing. Show the person that plan (every diff, the risk, real money, the caps) and wait for their approval. Then call again with confirm: true. Apply only a plan the person approved; for any other change, check a new plan with segnals_plan_fleet.
-The apply carries an Idempotency-Key made from the plan id, so applying the same plan twice does nothing more. A plan whose bots changed since the check is refused (plan_stale) and nothing is applied. Starts are released in batches (25 a minute by default): follow them with segnals_get_fleet_plan, and never say a real-money bot started until the plan says applied. Items that need the account holder's confirmation wait for it in Settings → Bot manager; you cannot confirm them. A fleet may apply 10 plans an hour. Requires: a master key (manage:fleet). Example: segnals_apply_fleet_plan({ plan_id: "<plan_id>", confirm: true })`,
+The apply is sent once and carries an Idempotency-Key made from the plan id, so applying the same plan twice does nothing more; if Segnals does not answer, read the plan with segnals_get_fleet_plan before applying again. A plan whose bots changed since the check is refused (plan_stale) and nothing is applied. Starts are released in batches (25 a minute by default): follow them with segnals_get_fleet_plan, and never say a real-money bot started until the plan says applied. Items that need the account holder's confirmation wait for it in Settings → Bot manager; you cannot confirm them. A fleet may apply 10 plans an hour. Requires: a master key (manage:fleet). Example: segnals_apply_fleet_plan({ plan_id: "<plan_id>", confirm: true })`,
     {
       plan_id: planId,
       confirm: z.boolean().optional().default(false).describe("Set to true to apply, after the person approved the preview"),
@@ -304,13 +365,20 @@ The apply carries an Idempotency-Key made from the plan id, so applying the same
         }
       }
       try {
+        // Sent once. After a 5xx or a timeout the agent reads the plan before it applies again.
         const result = await client.request<Plan>(`${path}/apply`, {
           method: "POST",
           headers: { "Idempotency-Key": idempotencyKey(plan_id) },
+          retries: 0,
+          timeoutMs: WRITE_TIMEOUT_MS,
         });
         return ok({ next_step: nextFor(result, plan_id), ...result });
       } catch (error) {
-        return planError(error, { routeMissing: NO_APPLY_ROUTE, conflict: PLAN_NOT_APPLICABLE });
+        return planError(error, {
+          routeMissing: NO_APPLY_ROUTE,
+          conflict: PLAN_NOT_APPLICABLE,
+          unknownOutcome: APPLY_OUTCOME_UNKNOWN,
+        });
       }
     },
   );
@@ -323,7 +391,12 @@ The apply carries an Idempotency-Key made from the plan id, so applying the same
     { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     async (): Promise<ToolResult> => {
       try {
-        const result = await client.post<Record<string, unknown>>("/fleet/stop-all");
+        // Sent once: a fleet may stop all 3 times an hour, and a resend after a timeout would spend that.
+        const result = await client.request<Record<string, unknown>>("/fleet/stop-all", {
+          method: "POST",
+          retries: 0,
+          timeoutMs: WRITE_TIMEOUT_MS,
+        });
         return ok({
           next_step:
             "Tell the person which bots stopped and which were skipped (they still run). The fleet is stopped_all " +
@@ -334,6 +407,7 @@ The apply carries an Idempotency-Key made from the plan id, so applying the same
         return planError(error, {
           routeMissing: NO_STOP_ALL_ROUTE,
           notVisible: NO_FLEET_TO_STOP,
+          unknownOutcome: STOP_ALL_OUTCOME_UNKNOWN,
           also: STOP_ALL_FAILED,
         });
       }

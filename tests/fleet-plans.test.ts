@@ -205,25 +205,62 @@ describe("Fleet plans", () => {
       expect(next).toContain(`segnals_apply_fleet_plan({ plan_id: "${PLAN_ID}" })`);
     });
 
-    it("drops a field the action does not take, risk_acknowledged among them, before the request", async () => {
-      answer(201, plan("checked"));
+    it("refuses a field the action does not take, by name, risk_acknowledged among them, and sends nothing", async () => {
       const mcp = await connect();
 
-      await call(mcp, "segnals_plan_fleet", {
-        items: [
-          { action: "start", bot_id: 9001, risk_acknowledged: true },
-          { action: "update", bot_id: 9002, config: { STOP_LOSS: { PERCENTAGE: 1.2 } }, start: true },
-        ],
+      const acknowledged = await refused(mcp, "segnals_plan_fleet", {
+        items: [{ action: "start", bot_id: 9001, risk_acknowledged: true }],
       });
+      expect(acknowledged).toContain("risk_acknowledged");
+      const startOnUpdate = await refused(mcp, "segnals_plan_fleet", {
+        items: [{ action: "update", bot_id: 9002, config: { STOP_LOSS: { PERCENTAGE: 1.2 } }, start: true }],
+      });
+      expect(startOnUpdate).toContain('"start"');
+      await refused(mcp, "segnals_plan_fleet", {
+        items: [{ action: "create", exchange: "bybit", connection_id: "c1", from: { bot_id: 1, risk_acknowledged: true } }],
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
 
-      expect(requests().map((request) => request.body)).toEqual([
-        {
-          items: [
-            { action: "start", bot_id: 9001 },
-            { action: "update", bot_id: 9002, config: { STOP_LOSS: { PERCENTAGE: 1.2 } } },
-          ],
-        },
-      ]);
+    it("takes every field the API takes, a null name included", async () => {
+      answer(201, plan("checked"));
+      const mcp = await connect();
+      const items = [
+        { action: "create", exchange: "mt5", connection_id: "c2", name: null, from: "default", config: {}, start: false },
+        { action: "update", bot_id: 9001, config: { MARTINGALE: { ENABLED: false } } },
+        { action: "start", bot_id: 9001 },
+        { action: "stop", bot_id: 9002 },
+        { action: "delete", bot_id: 9003 },
+      ];
+
+      dataOf(await call(mcp, "segnals_plan_fleet", { items }));
+      expect(requests().map((request) => request.body)).toEqual([{ items }]);
+    });
+
+    it("refuses a plan that names a credential, at any depth and in any case, without sending it or its value", async () => {
+      const mcp = await connect();
+      const planted = `planted-secret-${randomBytes(8).toString("hex")}`;
+      const cases: [unknown[], string][] = [
+        [[{ action: "update", bot_id: 1, config: { API_KEY: planted } }], "items[0].config.API_KEY"],
+        [
+          [{ action: "start", bot_id: 1 }, { action: "update", bot_id: 2, config: { EXCHANGE_ACCOUNT: { Api_Secret: planted } } }],
+          "items[1].config.EXCHANGE_ACCOUNT.Api_Secret",
+        ],
+        [[{ action: "create", exchange: "mt5", connection_id: "c1", config: { MT5_PASSWORD: planted } }], "items[0].config.MT5_PASSWORD"],
+        [
+          [{ action: "create", exchange: "bybit", connection_id: "c1", config: { LEGS: [{ passphrase: planted }] } }],
+          "items[0].config.LEGS[0].passphrase",
+        ],
+      ];
+
+      for (const [items, path] of cases) {
+        const result = await call(mcp, "segnals_plan_fleet", { items });
+        expect(result.isError, path).toBe(true);
+        expect(textOf(result), path).toContain(`a plan never holds a credential, and this one names ${path}.`);
+        expect(textOf(result), path).toContain("Never ask the person for a key, secret or password.");
+        expect(textOf(result), path).not.toContain(planted);
+      }
+      expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it("refuses a malformed plan before sending anything", async () => {
@@ -414,24 +451,24 @@ describe("Fleet plans", () => {
       expect(keys.every((key) => key.length <= 128)).toBe(true); // fleet_plans.idempotency_key is 128 wide
     });
 
-    it("retries a failed apply with the same key, so the server answers it once", async () => {
-      fetchMock
-        .mockImplementationOnce(async () => new Response(JSON.stringify({ message: "boom" }), { status: 502 }))
-        .mockImplementationOnce(async () => new Response(JSON.stringify(plan("applied")), { status: 200 }));
-      const mcp = await connect(Accounts.single(client(KEY_A, 1)));
+    it("sends the apply once, even with client retries on, and says to read the plan before applying again", async () => {
+      const mcp = await connect(Accounts.single(client(KEY_A, 3)));
 
-      const data = dataOf(await call(mcp, "segnals_apply_fleet_plan", { plan_id: PLAN_ID, confirm: true }));
+      answer(502, { message: "bad gateway" });
+      const failed = textOf(await call(mcp, "segnals_apply_fleet_plan", { plan_id: PLAN_ID, confirm: true }));
+      fetchMock.mockImplementation(async () => {
+        throw new TypeError("fetch failed");
+      });
+      const unreached = textOf(await call(mcp, "segnals_apply_fleet_plan", { plan_id: PLAN_ID, confirm: true }));
 
-      expect(data.status).toBe("applied");
-      const sent = requests();
-      expect(sent.map((request) => `${request.method} ${request.url}`)).toEqual([
+      expect(requests().map((request) => `${request.method} ${request.url}`)).toEqual([
         `POST ${BASE}/fleet/plans/${PLAN_ID}/apply`,
         `POST ${BASE}/fleet/plans/${PLAN_ID}/apply`,
       ]);
-      expect(sent.map((request) => request.headers["Idempotency-Key"])).toEqual([
-        idempotencyKey(PLAN_ID),
-        idempotencyKey(PLAN_ID),
-      ]);
+      for (const text of [failed, unreached]) {
+        expect(text).toContain("What to do next: Segnals may or may not have received this apply.");
+        expect(text).toContain("Read the plan with segnals_get_fleet_plan before anything else");
+      }
     });
 
     it("says what to do next when the apply is refused", async () => {
@@ -486,7 +523,7 @@ describe("Fleet plans", () => {
         [404, { error: "not_found", message: "Not found" }, "Segnals found no fleet of this key to stop"],
         [429, { error: "rate_limited", message: "At most 3 stop-alls an hour." }, "3 stop-alls an hour"],
         [403, { error: "fleet_disabled", message: "This master key's fleet is disabled." }, "can enable it in Settings → Bot manager"],
-        [500, { message: "boom" }, "Retry once in a minute"],
+        [500, { message: "boom" }, "Segnals may or may not have received this stop all"],
       ];
 
       for (const [status, body, next] of cases) {
@@ -497,6 +534,20 @@ describe("Fleet plans", () => {
         expect(text, next).toContain("can stop each bot from the dashboard");
       }
     });
+  });
+
+  it("sends a stop all once, even with client retries on: the hour allows 3", async () => {
+    fetchMock.mockImplementation(async () => {
+      throw new TypeError("fetch failed");
+    });
+    const mcp = await connect(Accounts.single(client(KEY_A, 3)));
+
+    const text = textOf(await call(mcp, "segnals_stop_all_fleet"));
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(text).toContain("What to do next: Segnals may or may not have received this stop all.");
+    expect(text).toContain("if its status is not stopped_all, send segnals_stop_all_fleet again");
+    expect(text).toContain("assume every bot of the fleet still runs");
   });
 
   describe("annotations and descriptions", () => {
@@ -616,6 +667,33 @@ describe("Fleet plans", () => {
       // Every tool but the two that answer locally sent its request and was walked.
       expect(sending).toHaveLength(31);
       expect(old.map((tool) => tool.name).filter((name) => !sending.includes(name)).sort()).toEqual(LOCAL_TOOLS);
+    });
+
+    it("translates it in the previews that read something, too", async () => {
+      answer(403, USE_FLEET_PLANS);
+      const mcp = await connect();
+      const { tools } = await mcp.listTools();
+      const previews = tools.filter(
+        (tool) => !SPEC_453_TOOLS.includes(tool.name) && "confirm" in ((tool.inputSchema as JsonSchema).properties ?? {}),
+      );
+      const reading: string[] = [];
+
+      expect(previews).toHaveLength(9);
+      for (const tool of previews) {
+        const schema = tool.inputSchema as JsonSchema;
+        const args: Record<string, unknown> = { ...argumentsFor(schema), confirm: false };
+        // segnals_update_bot reads the bot for its preview only when the update has a config.
+        if (schema.properties?.config) args.config = { TRADING_PARAMS: { LEVERAGE: 3 } };
+        const before = fetchMock.mock.calls.length;
+        const result = await call(mcp, tool.name, args);
+        if (fetchMock.mock.calls.length === before) continue;
+        reading.push(tool.name);
+        expect(result.isError, tool.name).toBe(true);
+        expect(textOf(result), tool.name).toContain("What to do next: This account's key is a master key.");
+      }
+
+      expect(requests().every((request) => request.method === "GET")).toBe(true);
+      expect(reading.sort()).toEqual(["segnals_copy_strategy", "segnals_delete_bot", "segnals_update_bot"]);
     });
 
     it("names the fleet tools for use_fleet_plans only, not for any other 403", async () => {

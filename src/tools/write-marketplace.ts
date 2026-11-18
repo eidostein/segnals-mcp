@@ -7,7 +7,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SegnalsClient } from "../client.js";
-import { ok, err } from "./helpers.js";
+import { ok, err, isUseFleetPlans } from "./helpers.js";
 import { SAFETY_DISCLAIMER } from "./meta.js";
 
 /** Current disclaimer version — must match the backend's CURRENT_DISCLAIMER_VERSION */
@@ -38,7 +38,8 @@ The buyer risk disclaimer is required — the agent must present the disclaimer 
             listingInfo = await client.get<Record<string, unknown>>(
               `/marketplace/${listing_id}`,
             );
-          } catch {
+          } catch (error) {
+            if (isUseFleetPlans(error)) return err(error);
             return ok({
               action: "copy_strategy",
               preview: `Could not fetch listing #${listing_id}. It may not exist or may not be active.`,

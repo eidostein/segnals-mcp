@@ -103,7 +103,10 @@ export function refusal(text: string, next: string): ToolResult {
 export interface FleetErrorOptions {
   /** What a 404 the API gave no other meaning means for this tool. */
   notFound?: string;
-  /** Next steps of this tool's own, keyed by the API's error code; they come before the shared ones. */
+  /**
+   * Next steps of this tool's own, keyed by the API's error code or else the client's (`server_error`,
+   * `network_error`); they come before the shared ones.
+   */
   more?: ReadonlyMap<string, string>;
   /** What a scope refusal calls the request: "read" (the default) or "request". */
   what?: string;
@@ -122,6 +125,7 @@ export function fleetError(error: unknown, options: FleetErrorOptions = {}): Too
   const code = error.apiError ?? "";
   const next =
     more?.get(code) ??
+    more?.get(error.errorCode) ??
     NEXT_STEP.get(code) ??
     NEXT_STEP.get(error.errorCode) ??
     (error.statusCode === 404 ? notFound : error.statusCode === 401 ? NEW_KEY : TELL_THE_PERSON);

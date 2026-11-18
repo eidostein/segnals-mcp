@@ -8,8 +8,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SegnalsClient } from "../client.js";
 import type { UserProfile } from "../types.js";
-import { SegnalsApiError } from "../errors.js";
-import { ok, err, USE_FLEET_PLANS } from "./helpers.js";
+import { ok, err, isUseFleetPlans } from "./helpers.js";
 import { ENGINES } from "./fleet.js";
 
 /** All available tools with their required scopes */
@@ -119,8 +118,7 @@ export function registerMetaTools(server: McpServer, client: SegnalsClient): voi
         const result = err(error);
         // Add first-run guidance on auth failure. A master key is refused this route (`use_fleet_plans`)
         // although it works, so it gets the fleet tools from err() and no advice to make a new key.
-        const masterKey = error instanceof SegnalsApiError && error.apiError === USE_FLEET_PLANS;
-        if (result.isError && !masterKey) {
+        if (result.isError && !isUseFleetPlans(error)) {
           result.content[0].text +=
             "\n\nTo fix this:\n" +
             "1. Go to https://segnals.com → Settings → API Keys\n" +

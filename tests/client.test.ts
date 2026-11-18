@@ -9,6 +9,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { randomBytes } from "node:crypto";
 import { SegnalsClient } from "../src/client.js";
 import {
   ApiKeyError,
@@ -56,8 +57,10 @@ describe("SegnalsClient", () => {
     it("sends extra headers, and none of them replaces the client's own, whatever its case", async () => {
       const mockFetch = vi.fn().mockResolvedValue(jsonResponse(200, { ok: true }));
       vi.stubGlobal("fetch", mockFetch);
+      // A fake key made at run time, so no key-shaped literal sits in the repository.
+      const key = `sk_live_${randomBytes(12).toString("hex")}`;
 
-      const client = createClient();
+      const client = createClient({ apiKey: key });
       await client.request("/fleet/plans/p1/apply", {
         method: "POST",
         headers: {
@@ -71,9 +74,20 @@ describe("SegnalsClient", () => {
       const [, options] = mockFetch.mock.calls[0];
       expect(options.headers).toEqual({
         "Idempotency-Key": "segnals-mcp-apply-p1",
-        Authorization: "Bearer sk_live_testkey1234567890",
+        Authorization: `Bearer ${key}`,
         Accept: "application/json",
       });
+    });
+
+    it("sends a request once when it is told no retries, whatever the client's own", async () => {
+      const mockFetch = vi.fn().mockResolvedValue(jsonResponse(502, { message: "bad gateway" }));
+      vi.stubGlobal("fetch", mockFetch);
+
+      const client = createClient({ maxRetries: 2 });
+      await expect(client.request("/fleet/stop-all", { method: "POST", retries: 0 })).rejects.toBeInstanceOf(
+        ServerError,
+      );
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
     it("sets Accept: application/json", async () => {

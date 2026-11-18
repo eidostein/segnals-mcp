@@ -33,6 +33,11 @@ export interface RequestOptions {
   headers?: Record<string, string>;
   /** Override the default timeout for this request */
   timeoutMs?: number;
+  /**
+   * Override the retries on a 5xx or a network failure for this request. 0 for a write whose
+   * repeat the caller must decide on after reading the state.
+   */
+  retries?: number;
 }
 
 export interface ApiResponse<T = unknown> {
@@ -75,7 +80,7 @@ export class SegnalsClient {
    * @throws {NetworkError} on network failures
    */
   async request<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
-    const { method = "GET", body, params, timeoutMs, headers: extraHeaders } = options;
+    const { method = "GET", body, params, timeoutMs, headers: extraHeaders, retries = this.maxRetries } = options;
 
     // Build URL with query parameters
     let url = `${this.apiBase}${path}`;
@@ -112,7 +117,7 @@ export class SegnalsClient {
 
     // Retry loop with exponential backoff
     let lastError: Error | undefined;
-    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         const response = await this.fetchWithTimeout(url, fetchOptions, timeoutMs);
         return await this.handleResponse<T>(response, path);
@@ -125,7 +130,7 @@ export class SegnalsClient {
         }
 
         // Don't retry on the last attempt
-        if (attempt === this.maxRetries) {
+        if (attempt === retries) {
           break;
         }
 
