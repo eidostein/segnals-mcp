@@ -36,7 +36,7 @@ export function registerNotificationTools(server: McpServer, client: SegnalsClie
 Non-destructive — no confirmation needed. Updates are deep-merged with existing preferences.
 Valid keys: system_reminders, daily_report, performance_alerts, weekly_summary, custom_alerts.`,
     {
-      preferences: z.record(z.unknown()).describe(
+      preferences: z.record(z.string(), z.unknown()).describe(
         "Notification preferences to update. Keys: system_reminders (boolean), " +
         "daily_report ({ enabled, hour_utc }), performance_alerts ({ enabled, threshold_pnl_usd }), " +
         "weekly_summary ({ enabled, day, hour_utc }), custom_alerts",

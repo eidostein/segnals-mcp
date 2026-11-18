@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Every tool takes `account`. It is optional with one account and required with several (`segnals_list_accounts` excepted, where it only narrows the list): a call without it, or with a label the server does not hold, is refused with the list of labels and sends nothing. Each account has its own API client, so a call sends only the key of the account it names. Every answer starts with the label it acted on
 - `segnals_list_accounts`: the labels, each key's mode (`live` or `test`, from its prefix; never the key) and what `GET /fleet` answers per account, or why it cannot. The server has 34 tools
 
+### Security
+- zod 4.6.7 (was 3.25), because the memory-exhaustion advisory GHSA-mrhx-c7xc-m3w5 has no fix in zod 3. The lockfile takes the body-parser, hono, @hono/node-server, fast-uri and qs releases that close the advisories published since 0.1.1. The production dependency audit passes again. The two record arguments, `preferences` of `segnals_set_notifications` and `config` of `segnals_update_bot`, now name their string keys, which zod 4 requires
+
 ## [0.1.1] — 2026-10-13
 
 ### Fixed

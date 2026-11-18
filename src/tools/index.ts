@@ -35,7 +35,7 @@ export type Handler = (args: Record<string, unknown>, extra: unknown) => ToolRes
 
 export interface CapturedTool {
   description: string;
-  shape: Record<string, z.ZodTypeAny>;
+  shape: Record<string, z.ZodType>;
   handler: Handler;
 }
 
@@ -89,7 +89,7 @@ export function captureTools(
       }
       tools.set(name, {
         description,
-        shape: shape as Record<string, z.ZodTypeAny>,
+        shape: shape as Record<string, z.ZodType>,
         handler: handler as Handler,
       });
     },
