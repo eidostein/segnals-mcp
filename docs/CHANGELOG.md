@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `segnals_list_accounts`: the labels, each key's mode (`live` or `test`, from its prefix; never the key) and what `GET /fleet` answers per account, or why it cannot. The server has 34 tools
 
 ### Security
-- zod 4.6.7 (was 3.25), because the memory-exhaustion advisory GHSA-mrhx-c7xc-m3w5 has no fix in zod 3. The lockfile takes the body-parser, hono, @hono/node-server, fast-uri and qs releases that close the advisories published since 0.1.1. The production dependency audit passes again. The two record arguments, `preferences` of `segnals_set_notifications` and `config` of `segnals_update_bot`, now name their string keys, which zod 4 requires
+- zod 4.6.7 (was 3.25), because the memory-exhaustion advisory GHSA-mrhx-c7xc-m3w5 has no fix in zod 3. The lockfile takes the body-parser, hono, @hono/node-server, fast-uri and qs releases that close the advisories published since 0.1.1. The production dependency audit passes again. The four record arguments now name their string keys, which zod 4 requires: `preferences` of `segnals_set_notifications`, `config` of `segnals_update_bot` and `segnals_create_strategy`, and `params` of `segnals_set_indicator_filter`
 
 ## [0.1.1] — 2026-10-13
 
