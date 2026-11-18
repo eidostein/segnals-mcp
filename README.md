@@ -94,8 +94,9 @@ The **Segnals MCP Server** is a thin, secure gateway designed for the Model Cont
 
 ## Features & Capability Overview
 
-The server exposes **33 distinct tools** structured across the following trading features:
+The server exposes **34 distinct tools** structured across the following trading features:
 
+*   **Several Accounts**: Hold one key per account under a label, list them, and name the account on every call.
 *   **Account & Meta**: Verify the key and read the account tier, subscription, and which exchanges are connected.
 *   **Stats**: Read the dashboard and profit/loss for a period (24h, 7d, 30d, all, or a date range), per-bot performance, and trades.
 *   **Life Cycle Control**: Create, update, start, stop, restart, and delete bots.
@@ -176,6 +177,24 @@ export SEGNALS_API_KEY=sk_live_your_key_here
 node dist/index.js
 ```
 
+### Several accounts
+One server can act for several Segnals accounts, one key per account. Instead of `SEGNALS_API_KEY`, set `SEGNALS_ACCOUNTS_FILE` to a local JSON file of labelled keys:
+```json
+{
+  "accounts": [
+    { "label": "vip-a", "key": "sk_test_your_first_key" },
+    { "label": "vip-b", "key": "sk_test_your_second_key" }
+  ]
+}
+```
+Only you may be able to read the file, as with an ssh private key; the server refuses to start otherwise:
+```bash
+chmod 600 ~/.config/segnals/accounts.json
+export SEGNALS_ACCOUNTS_FILE=~/.config/segnals/accounts.json
+node dist/index.js
+```
+Every tool then takes `account`, the label, and refuses a call without it, listing the labels; only `segnals_list_accounts` needs none, since it lists every label and its key's mode (never the key). Every answer starts with the label it acted on. Setting both `SEGNALS_ACCOUNTS_FILE` and `SEGNALS_API_KEY` is refused. For client configs and the file's rules, see [Several accounts](docs/CONFIGURATION.md#several-accounts).
+
 ---
 
 ## Client Configuration
@@ -253,10 +272,11 @@ For detailed information, see the [Authentication Documentation](docs/AUTHENTICA
 
 ## Tool Reference
 
-The following table summarizes the **33 tools** exposed by the Segnals MCP server:
+The following table summarizes the **34 tools** exposed by the Segnals MCP server. Every tool takes `account`, the label of the account to act on: optional with one account, required with several (except `segnals_list_accounts`, where it only narrows the list).
 
 | Tool Name | Operation | Description | Required Scope | Confirmation |
 |---|---|---|---|---|
+| `segnals_list_accounts` | Read | The accounts this server holds keys for: labels, key modes, fleets. | none, local | No |
 | `segnals_whoami` | Read | Verify the API key and show the username and tier. | any valid key | No |
 | `segnals_get_capabilities` | Read | List all tools and the scope each one needs. | any valid key | No |
 | `segnals_get_safety_disclaimer` | Read | Return the risk and safety disclaimer. | any valid key | No |

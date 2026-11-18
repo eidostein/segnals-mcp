@@ -12,6 +12,8 @@ import { ok, err } from "./helpers.js";
 
 /** All available tools with their required scopes */
 const TOOL_CATALOG = [
+  // Accounts (local: the labels and key modes this program holds)
+  { name: "segnals_list_accounts", scope: "(none, local)", type: "read" },
   // Meta (any key)
   { name: "segnals_whoami", scope: "(any valid key)", type: "read" },
   { name: "segnals_get_capabilities", scope: "(any valid key)", type: "read" },
@@ -119,7 +121,7 @@ export function registerMetaTools(server: McpServer, client: SegnalsClient): voi
         version: "0.1.1",
         transport: "stdio",
         tools: TOOL_CATALOG,
-        note: "Tools marked with scope '(any valid key)' work with any valid API key. Other tools require the listed scope to be granted to your key.",
+        note: "Tools marked with scope '(any valid key)' work with any valid API key. segnals_list_accounts needs no scope for the labels and key modes, which it reads locally. Other tools require the listed scope to be granted to your key. With several accounts, each tool call names one with the account argument, and the scopes are that account's key's.",
       });
     },
   );

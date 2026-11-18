@@ -57,7 +57,7 @@ IMPORTANT: Never include exchange API keys/secrets in the config.`,
       exchange: z.enum(["bybit", "phemex", "mt5"]).describe("Exchange for the strategy"),
       name: z.string().min(1).max(100).describe("Strategy name"),
       config: z
-        .record(z.unknown())
+        .record(z.string(), z.unknown())
         .describe(
           "Strategy configuration, nested as segnals_get_bot shows it, e.g. " +
             "{ TRADING_PARAMS: { LEVERAGE: 3 }, STOP_LOSS: { VALUE_PCT: 2 } }. " +
@@ -161,7 +161,7 @@ All gates share INDICATOR_FILTER.TIMEFRAME (default "D"); change it with segnals
       filter_type: z.enum(["adx", "rsi", "ema", "atr"]).describe("Indicator gate to configure"),
       enabled: z.boolean().describe("Switch the gate on or off"),
       params: z
-        .record(z.unknown())
+        .record(z.string(), z.unknown())
         .optional()
         .describe("Gate parameters, e.g. { period: 14, min: 25 } for adx. Keys are case-insensitive."),
     },

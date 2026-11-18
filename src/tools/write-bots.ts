@@ -80,7 +80,10 @@ IMPORTANT: Never include exchange API keys/secrets in the config — users enter
     {
       bot_id: z.number().int().positive().describe("Bot ID to update"),
       name: z.string().optional().describe("New bot name"),
-      config: z.record(z.unknown()).optional().describe("Configuration key-value pairs to update"),
+      config: z
+        .record(z.string(), z.unknown())
+        .optional()
+        .describe("Configuration key-value pairs to update"),
       confirm: z.boolean().optional().default(false).describe("Set to true to execute after previewing"),
     },
     async ({ bot_id, name, config, confirm }) => {
