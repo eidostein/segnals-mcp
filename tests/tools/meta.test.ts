@@ -92,7 +92,7 @@ describe("Meta tools", () => {
 
       expect(data.server).toBe("segnals-mcp");
       expect(data.tools).toEqual(TOOL_CATALOG);
-      expect(data.tools.length).toBe(33);
+      expect(data.tools.length).toBe(34);
     });
   });
 

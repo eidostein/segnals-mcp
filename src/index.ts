@@ -3,11 +3,13 @@
 /**
  * Segnals MCP Server — Entry Point
  *
- * Starts a stdio-based MCP server that exposes 33 tools for managing
+ * Starts a stdio-based MCP server that exposes 34 tools for managing
  * Segnals trading bots, strategies, and portfolio via AI agents.
  *
  * Configuration is read exclusively from environment variables:
- *   - SEGNALS_API_KEY (required) — your Segnals API key
+ *   - SEGNALS_API_KEY — your Segnals API key: one account, labelled "default"
+ *   - SEGNALS_ACCOUNTS_FILE — instead of SEGNALS_API_KEY: a local JSON file of labelled keys,
+ *     one per account, that only its owner can read (chmod 600)
  *   - SEGNALS_API_BASE (optional) — API base URL (default: https://segnals.com/api)
  *
  * Usage (the package is not on npm; these are the two ways to run it):
@@ -17,12 +19,12 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { loadConfig } from "./config.js";
-import { SegnalsClient } from "./client.js";
+import { loadAccounts } from "./config.js";
+import { Accounts } from "./accounts.js";
 import { registerAllTools } from "./tools/index.js";
 
-// 1. Load and validate config (exits with friendly message if no key)
-const config = loadConfig();
+// 1. Load and validate config (exits with a friendly message if there is no key, or the accounts file is refused)
+const config = loadAccounts();
 
 // 2. Create MCP server
 const server = new McpServer({
@@ -30,11 +32,11 @@ const server = new McpServer({
   version: "0.1.1",
 });
 
-// 3. Create API client
-const client = new SegnalsClient(config);
+// 3. Create one API client per account, each with its own key
+const accounts = Accounts.fromConfig(config);
 
-// 4. Register all tools
-registerAllTools(server, client);
+// 4. Register all tools; each takes `account`, which picks whose client acts
+registerAllTools(server, accounts);
 
 // 5. Start stdio transport
 // Structured so that Phase 4 can add Streamable HTTP transport here

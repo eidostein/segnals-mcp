@@ -5,6 +5,7 @@
  * The return type uses an index signature to satisfy the SDK's type requirements.
  */
 
+import { AccountChoiceError } from "../accounts.js";
 import { SegnalsApiError } from "../errors.js";
 
 interface ToolContent {
@@ -47,4 +48,18 @@ export function err(error: unknown): ToolResult {
     content: [{ type: "text" as const, text: `Error: ${message}` }],
     isError: true,
   };
+}
+
+/**
+ * A refusal for a call that names no account where several are held, or an unknown one.
+ * The message lists the labels.
+ */
+export function accountRefusal(error: unknown): ToolResult {
+  const text = error instanceof AccountChoiceError ? error.message : "The account could not be chosen.";
+  return { content: [{ type: "text" as const, text }], isError: true };
+}
+
+/** The same answer, starting with a line that names the account it covers. */
+export function headed(heading: string, result: ToolResult): ToolResult {
+  return { ...result, content: [{ type: "text" as const, text: heading }, ...result.content] };
 }

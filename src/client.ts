@@ -51,6 +51,11 @@ export class SegnalsClient {
     this.maxRetries = config.maxRetries;
   }
 
+  /** The key's mode, read from its prefix (`sk_test_` is test). The key itself never leaves this class. */
+  get keyMode(): "live" | "test" {
+    return this.apiKey.startsWith("sk_test_") ? "test" : "live";
+  }
+
   /**
    * Make an authenticated request to the Segnals API.
    *

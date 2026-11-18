@@ -1,6 +1,14 @@
 # Tools Reference
 
-The server has 33 tools. All are prefixed `segnals_` to avoid name collisions in multi-MCP setups.
+The server has 34 tools. All are prefixed `segnals_` to avoid name collisions in multi-MCP setups.
+
+## The `account` argument
+
+Every tool takes `account`, the label of the account to act on (see
+[Several accounts](CONFIGURATION.md#several-accounts)). With one account it is optional.
+With several it is required, and a call without it, or with a label the program does not
+hold, is refused with the list of labels. Every answer starts with a line naming the
+account it acted on, for example `account: vip-a`. No call acts on two accounts.
 
 ## Confirmation Pattern
 
@@ -9,6 +17,15 @@ Tools marked with ✋ use **two-step confirmation**:
 2. Call with `confirm: true` → **executes** the action
 
 This prevents accidental mutations and ensures the AI agent presents consequences before acting.
+
+## Accounts
+
+### `segnals_list_accounts`
+- **Scope:** none, local
+- **Purpose:** List the accounts this program holds keys for. Use it first when you do not know the labels
+- **Returns:** per account its `label`, its key's `mode` (`live` or `test`, read from the key's prefix; the key itself is never shown), and what `GET /fleet` answers for it, or `fleet: null` with `fleet_unavailable` saying why (a key without a fleet, or a server whose fleet manager is off)
+- **Takes:** `account` (optional): list only that account
+- **Example:** `segnals_list_accounts()`
 
 ## Meta / Connection
 
