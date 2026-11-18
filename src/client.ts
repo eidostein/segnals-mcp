@@ -26,6 +26,11 @@ export interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: Record<string, unknown>;
   params?: Record<string, string | number | boolean | undefined>;
+  /**
+   * Extra request headers, such as `Idempotency-Key`. One named `Authorization`, `Accept` or
+   * `Content-Type`, in any case, is dropped: the client sets those itself.
+   */
+  headers?: Record<string, string>;
   /** Override the default timeout for this request */
   timeoutMs?: number;
 }
@@ -70,7 +75,7 @@ export class SegnalsClient {
    * @throws {NetworkError} on network failures
    */
   async request<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
-    const { method = "GET", body, params, timeoutMs } = options;
+    const { method = "GET", body, params, timeoutMs, headers: extraHeaders } = options;
 
     // Build URL with query parameters
     let url = `${this.apiBase}${path}`;
@@ -87,7 +92,13 @@ export class SegnalsClient {
       }
     }
 
+    // An extra header never stands in for the ones the client sets, whatever its case.
+    const own = new Set(["authorization", "accept", "content-type"]);
+    const extra = Object.fromEntries(
+      Object.entries(extraHeaders ?? {}).filter(([name]) => !own.has(name.toLowerCase())),
+    );
     const headers: Record<string, string> = {
+      ...extra,
       Authorization: `Bearer ${this.apiKey}`,
       Accept: "application/json",
     };

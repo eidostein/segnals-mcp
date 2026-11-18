@@ -21,6 +21,7 @@ import { readAccountsFile } from "../src/config.js";
 import { z } from "zod";
 import { captureTools, registerAllTools } from "../src/tools/index.js";
 import { TOOL_CATALOG } from "../src/tools/meta.js";
+import { argumentsFor, type JsonSchema } from "./schema-sample.js";
 
 // Fake keys, made at run time so no key-shaped literal sits in the repository.
 const KEY_A = `sk_live_plantedkey_${randomBytes(12).toString("hex")}`;
@@ -34,14 +35,6 @@ const LOCAL_TOOLS = ["segnals_get_capabilities", "segnals_get_safety_disclaimer"
 interface ToolAnswer {
   isError?: boolean;
   content: { type: string; text: string }[];
-}
-
-interface JsonSchema {
-  type?: string;
-  enum?: unknown[];
-  anyOf?: JsonSchema[];
-  properties?: Record<string, JsonSchema>;
-  required?: string[];
 }
 
 let dir: string;
@@ -78,36 +71,6 @@ async function connect(accounts?: Accounts): Promise<Client> {
   const client = new Client({ name: "test", version: "test" });
   await client.connect(clientSide);
   return client;
-}
-
-/** A value the schema accepts. */
-function sample(schema: JsonSchema): unknown {
-  if (schema.enum) return schema.enum[0];
-  if (schema.anyOf) return sample(schema.anyOf[schema.anyOf.length - 1]);
-  switch (schema.type) {
-    case "integer":
-    case "number":
-      return 1;
-    case "boolean":
-      return true;
-    case "object":
-      return {};
-    case "array":
-      return [];
-    default:
-      return "x";
-  }
-}
-
-/** Arguments that pass the tool's schema, with `confirm: true` so a write sends its request. */
-function argumentsFor(schema: JsonSchema, account?: string): Record<string, unknown> {
-  const args: Record<string, unknown> = {};
-  for (const name of schema.required ?? []) {
-    args[name] = sample(schema.properties?.[name] ?? {});
-  }
-  if (schema.properties?.confirm) args.confirm = true;
-  if (account !== undefined) args.account = account;
-  return args;
 }
 
 function textOf(answer: ToolAnswer): string {
@@ -147,8 +110,10 @@ describe("Several accounts", () => {
     expect(tools.map((tool) => tool.name).sort()).toEqual(TOOL_CATALOG.map((tool) => tool.name).sort());
     const walked = tools.filter((tool) => tool.name !== LISTS_ACCOUNTS);
     expect(walked).toHaveLength(TOOL_CATALOG.length - 1);
-    // The 33 tools of 0.1.1 and the fleet reads segnals_get_settings_catalog, segnals_get_fleet and segnals_fleet_report.
-    expect(walked).toHaveLength(33 + 3);
+    // The 33 tools of 0.1.1 and the seven SPEC 453 tools that act on one account: the fleet reads
+    // segnals_get_settings_catalog, segnals_get_fleet and segnals_fleet_report, and the plan tools
+    // segnals_plan_fleet, segnals_get_fleet_plan, segnals_apply_fleet_plan and segnals_stop_all_fleet.
+    expect(walked).toHaveLength(33 + 7);
 
     for (const tool of walked) {
       const account = (tool.inputSchema as JsonSchema & { properties: Record<string, { description?: string }> })

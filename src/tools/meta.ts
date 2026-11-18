@@ -8,7 +8,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SegnalsClient } from "../client.js";
 import type { UserProfile } from "../types.js";
-import { ok, err } from "./helpers.js";
+import { SegnalsApiError } from "../errors.js";
+import { ok, err, USE_FLEET_PLANS } from "./helpers.js";
 import { ENGINES } from "./fleet.js";
 
 /** All available tools with their required scopes */
@@ -59,10 +60,15 @@ const TOOL_CATALOG = [
   // Notifications
   { name: "segnals_get_notifications", scope: "manage:notifications", type: "read" },
   { name: "segnals_set_notifications", scope: "manage:notifications", type: "write" },
-  // Fleet (SPEC 453): the settings catalog for any key; the fleet and its report for a master key
+  // Fleet (SPEC 453): the settings catalog for any key; the fleet, its report and its plans for a master key
   { name: "segnals_get_settings_catalog", scope: "(any valid key)", type: "read" },
   { name: "segnals_get_fleet", scope: "manage:fleet", type: "read" },
   { name: "segnals_fleet_report", scope: "read:stats", type: "read" },
+  // Fleet plans (SPEC 453): check changes nothing; apply and stop all change bots
+  { name: "segnals_plan_fleet", scope: "manage:fleet", type: "read" },
+  { name: "segnals_get_fleet_plan", scope: "manage:fleet", type: "read" },
+  { name: "segnals_apply_fleet_plan", scope: "manage:fleet", type: "write", confirm: true },
+  { name: "segnals_stop_all_fleet", scope: "manage:fleet", type: "write" },
 ];
 
 /** The resources the server offers, beside its tools. */
@@ -111,8 +117,10 @@ export function registerMetaTools(server: McpServer, client: SegnalsClient): voi
         });
       } catch (error) {
         const result = err(error);
-        // Add first-run guidance on auth failure
-        if (result.isError) {
+        // Add first-run guidance on auth failure. A master key is refused this route (`use_fleet_plans`)
+        // although it works, so it gets the fleet tools from err() and no advice to make a new key.
+        const masterKey = error instanceof SegnalsApiError && error.apiError === USE_FLEET_PLANS;
+        if (result.isError && !masterKey) {
           result.content[0].text +=
             "\n\nTo fix this:\n" +
             "1. Go to https://segnals.com → Settings → API Keys\n" +
@@ -133,11 +141,11 @@ export function registerMetaTools(server: McpServer, client: SegnalsClient): voi
     async () => {
       return ok({
         server: "segnals-mcp",
-        version: "0.1.1",
+        version: "0.2.0",
         transport: "stdio",
         tools: TOOL_CATALOG,
         resources: RESOURCE_CATALOG,
-        note: "Tools marked with scope '(any valid key)' work with any valid API key. segnals_list_accounts needs no scope for the labels and key modes, which it reads locally. Other tools require the listed scope to be granted to your key. manage:fleet is held only by a master key, which the account holder creates in Settings → Bot manager; segnals_get_fleet and segnals_fleet_report answer a master key only. With several accounts, each tool call names one with the account argument, and the scopes are that account's key's.",
+        note: "Tools marked with scope '(any valid key)' work with any valid API key. segnals_list_accounts needs no scope for the labels and key modes, which it reads locally. Other tools require the listed scope to be granted to your key. manage:fleet is held only by a master key, which the account holder creates in Settings → Bot manager; segnals_get_fleet, segnals_fleet_report and the plan tools (segnals_plan_fleet, segnals_get_fleet_plan, segnals_apply_fleet_plan, segnals_stop_all_fleet) answer a master key only. A master key gets use_fleet_plans from any other tool whose route it may not use: it changes its fleet through plans only. With several accounts, each tool call names one with the account argument, and the scopes are that account's key's.",
       });
     },
   );

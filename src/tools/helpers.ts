@@ -33,12 +33,30 @@ export function ok(data: unknown): ToolResult {
 }
 
 /**
+ * What a master key does instead of a tool whose route it may not use (SPEC 453 §3.3, §3.9): the API
+ * answers such a route 403 `use_fleet_plans`, whatever the tool.
+ */
+export const USE_FLEET_TOOLS =
+  "This account's key is a master key. It reads its own fleet and changes it only through fleet plans, so this tool " +
+  "is refused for it. Use the fleet tools: segnals_get_settings_catalog and segnals_get_fleet to read, " +
+  "segnals_plan_fleet to check a change (it changes nothing), segnals_apply_fleet_plan to apply a plan the person " +
+  "approved, segnals_get_fleet_plan to follow it, segnals_stop_all_fleet to stop every bot of the fleet, and " +
+  "segnals_fleet_report for its performance. segnals_list_bots and segnals_get_bot read the fleet's bots.";
+
+/** The API's code for a route a master key may not use. */
+export const USE_FLEET_PLANS = "use_fleet_plans";
+
+/**
  * Format an error tool result with a clear message.
+ *
+ * A 403 `use_fleet_plans` (a master key on a route outside its allow-list) also names the fleet tools.
  */
 export function err(error: unknown): ToolResult {
   if (error instanceof SegnalsApiError) {
+    const text =
+      error.apiError === USE_FLEET_PLANS ? `${error.message}\n\nWhat to do next: ${USE_FLEET_TOOLS}` : error.message;
     return {
-      content: [{ type: "text" as const, text: error.message }],
+      content: [{ type: "text" as const, text }],
       isError: true,
     };
   }

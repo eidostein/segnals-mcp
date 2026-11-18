@@ -53,6 +53,29 @@ describe("SegnalsClient", () => {
       expect(options.headers.Authorization).toBe("Bearer sk_live_testkey1234567890");
     });
 
+    it("sends extra headers, and none of them replaces the client's own, whatever its case", async () => {
+      const mockFetch = vi.fn().mockResolvedValue(jsonResponse(200, { ok: true }));
+      vi.stubGlobal("fetch", mockFetch);
+
+      const client = createClient();
+      await client.request("/fleet/plans/p1/apply", {
+        method: "POST",
+        headers: {
+          "Idempotency-Key": "segnals-mcp-apply-p1",
+          authorization: "Bearer someone-else",
+          ACCEPT: "text/html",
+          "content-type": "text/plain",
+        },
+      });
+
+      const [, options] = mockFetch.mock.calls[0];
+      expect(options.headers).toEqual({
+        "Idempotency-Key": "segnals-mcp-apply-p1",
+        Authorization: "Bearer sk_live_testkey1234567890",
+        Accept: "application/json",
+      });
+    });
+
     it("sets Accept: application/json", async () => {
       const mockFetch = vi.fn().mockResolvedValue(jsonResponse(200, { ok: true }));
       vi.stubGlobal("fetch", mockFetch);

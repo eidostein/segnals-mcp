@@ -65,6 +65,7 @@ All destructive or high-impact operations use a **two-step confirmation pattern*
 | `segnals_copy_strategy` ✋ | Medium | Creates bot from marketplace listing |
 | `segnals_publish_listing` ✋ | Low | Submits for admin review |
 | `segnals_control_copy_trading` ✋ | High | Starts/stops trade mirroring |
+| `segnals_apply_fleet_plan` ✋ | High | Creates, changes, starts, stops and deletes the fleet's bots as the checked plan says |
 
 ### Tools WITHOUT Confirmation (safe by nature)
 
@@ -73,6 +74,8 @@ All destructive or high-impact operations use a **two-step confirmation pattern*
 | `segnals_stop_bot` | Stopping is always safe — no open positions affected |
 | `segnals_set_indicator_filter` | Non-destructive config tweak |
 | `segnals_set_notifications` | Preferences only |
+| `segnals_plan_fleet` | Checks a plan and changes no bot; only an apply acts on it |
+| `segnals_stop_all_fleet` | Only stops: every bot of the fleet, at once. The account holder resumes the fleet |
 
 ---
 

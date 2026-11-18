@@ -12,7 +12,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SegnalsClient } from "../client.js";
 import { ScopeError, SegnalsApiError } from "../errors.js";
-import { ok, type ToolResult } from "./helpers.js";
+import { ok, USE_FLEET_TOOLS, type ToolResult } from "./helpers.js";
 
 /** The engines the API serves a catalog for (`GET /settings/catalog?engine=`). */
 export const ENGINES = ["mt5", "bybit", "phemex", "grid"] as const;
@@ -52,8 +52,7 @@ const NEXT_STEP = new Map<string, string>(
       `This account's key is not a master key. ${MASTER_KEY_HINT} ` +
       "Until then, segnals_list_bots shows the bots this key can read.",
     insufficient_scope: MASTER_KEY_HINT,
-    use_fleet_plans:
-      "A master key reads only its own fleet. Use segnals_get_fleet, segnals_fleet_report and segnals_get_settings_catalog.",
+    use_fleet_plans: USE_FLEET_TOOLS,
     unknown_engine: `Use one of the engines ${ENGINES.join(", ")}.`,
     engine_not_served:
       "This server does not serve that engine's catalog yet. Read another engine, or tell the person the server is older than the catalog.",
@@ -90,9 +89,9 @@ const REPORT_NOT_FOUND =
   "Either way this key reads no fleet report here; only a master key does, while the bot manager is on. Tell the person.";
 
 /** The scopes a ScopeError names, without the advice to add one to the key: a manual key never holds manage:fleet. */
-function scopeText(required: string | string[]): string {
+function scopeText(required: string | string[], what: string): string {
   const scopes = (Array.isArray(required) ? required : [required]).map((scope) => `\`${scope}\``);
-  return `Segnals refused this request (403): this key lacks the scope ${scopes.join(" or ")} that this read needs.`;
+  return `Segnals refused this request (403): this key lacks the scope ${scopes.join(" or ")} that this ${what} needs.`;
 }
 
 /** An error answer: what happened, then what to do next. */
@@ -100,17 +99,30 @@ export function refusal(text: string, next: string): ToolResult {
   return { content: [{ type: "text" as const, text: `${text}\n\nWhat to do next: ${next}` }], isError: true };
 }
 
+/** How a fleet tool's errors are read, beyond the codes every fleet tool shares. */
+export interface FleetErrorOptions {
+  /** What a 404 the API gave no other meaning means for this tool. */
+  notFound?: string;
+  /** Next steps of this tool's own, keyed by the API's error code; they come before the shared ones. */
+  more?: ReadonlyMap<string, string>;
+  /** What a scope refusal calls the request: "read" (the default) or "request". */
+  what?: string;
+}
+
 /**
- * A fleet read's error, with the next step. The message is the API's own (never the key),
+ * A fleet tool's error, with the next step. The message is the API's own (never the key),
  * followed by what to do about it.
  */
-export function fleetError(error: unknown, notFound: string = FLEET_ROUTES_MISSING): ToolResult {
+export function fleetError(error: unknown, options: FleetErrorOptions = {}): ToolResult {
+  const { notFound = FLEET_ROUTES_MISSING, more, what = "read" } = options;
   if (!(error instanceof SegnalsApiError)) {
     return refusal(`Error: ${error instanceof Error ? error.message : String(error)}`, TELL_THE_PERSON);
   }
-  const text = error instanceof ScopeError ? scopeText(error.requiredScope) : error.message;
+  const text = error instanceof ScopeError ? scopeText(error.requiredScope, what) : error.message;
+  const code = error.apiError ?? "";
   const next =
-    NEXT_STEP.get(error.apiError ?? "") ??
+    more?.get(code) ??
+    NEXT_STEP.get(code) ??
     NEXT_STEP.get(error.errorCode) ??
     (error.statusCode === 404 ? notFound : error.statusCode === 401 ? NEW_KEY : TELL_THE_PERSON);
   return refusal(text, next);
@@ -186,10 +198,10 @@ export function registerFleetTools(server: McpServer, client: SegnalsClient): vo
         }
         return ok(answer);
       } catch (error) {
-        return fleetError(
-          error,
-          "This server has no settings catalog route; it predates SPEC 453. Tell the person, and do not guess setting names.",
-        );
+        return fleetError(error, {
+          notFound:
+            "This server has no settings catalog route; it predates SPEC 453. Tell the person, and do not guess setting names.",
+        });
       }
     },
   );
@@ -224,7 +236,7 @@ export function registerFleetTools(server: McpServer, client: SegnalsClient): vo
       try {
         return ok(await client.get<unknown>("/fleet/report", { period: period ?? DEFAULT_REPORT_PERIOD }));
       } catch (error) {
-        return fleetError(error, REPORT_NOT_FOUND);
+        return fleetError(error, { notFound: REPORT_NOT_FOUND });
       }
     },
   );

@@ -11,8 +11,10 @@ Accounts. This program may hold keys for several Segnals accounts, each under a 
 Before you change any bot setting:
 1. Read the settings catalog first: segnals_get_settings_catalog, or the resource segnals://settings/{engine}, for the bot's engine. Use only the paths it lists, inside their range, and never one whose key_may_change is false. Never guess a setting name. Its version tells you when your copy is still current.
 2. If the account's key is a master key (it reads a fleet), read the fleet with segnals_get_fleet and how it is doing with segnals_fleet_report. A change must fit the fleet's policy and the account's bot limit. A key from Settings → API Keys has no fleet; skip this step for it.
-3. Plan per account. Show the person the diff before anything is applied: every bot, every setting before and after, the risk per bot and in total, and whether it is demo or real money.
-4. Apply only what the person approved, exactly as approved. Anything else is a new plan they see first.
-5. Never say a real-money bot started until the plan says applied, or, for a single bot, until its status says it runs.
+3. Plan per account. With a master key, check the plan with segnals_plan_fleet: it changes nothing and answers the diff, the risk and every refusal. Show the person the diff before anything is applied: every bot, every setting before and after, the risk per bot and in total, and whether it is demo or real money.
+4. Apply only what the person approved, exactly as approved: segnals_apply_fleet_plan with the plan_id they saw, first without confirm to preview, then with confirm: true. Anything else is a new plan they see first.
+5. Never say a real-money bot started until the plan says applied (segnals_get_fleet_plan), or, for a single bot, until its status says it runs.
+
+A master key changes its fleet only through plans; the other write tools answer it use_fleet_plans. When the person asks to stop everything, or something goes wrong, segnals_stop_all_fleet stops every bot of the fleet at once; only the account holder can resume it.
 
 In a report, a KPI that is null was not measured: say so, and never report it as 0. Errors say what to do next; when only the account holder can act (Settings → Bot manager), tell the person.`;
