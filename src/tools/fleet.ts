@@ -5,13 +5,13 @@
  *
  * None of them changes anything. The catalog answers any valid key. The fleet and its report
  * answer a master key only (the account holder creates it in Settings → Bot manager), and only
- * while the server's bot manager is switched on. Each error says what to do next.
+ * while the server's bot manager is switched on. Each error ends with what to do next.
  */
 
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SegnalsClient } from "../client.js";
-import { SegnalsApiError } from "../errors.js";
+import { ScopeError, SegnalsApiError } from "../errors.js";
 import { ok, type ToolResult } from "./helpers.js";
 
 /** The engines the API serves a catalog for (`GET /settings/catalog?engine=`). */
@@ -26,59 +26,85 @@ const DEFAULT_REPORT_PERIOD = "7d";
 const READS = { readOnlyHint: true, destructiveHint: false, idempotentHint: true } as const;
 
 const MASTER_KEY_HINT =
-  "Only a master key reads the fleet. The account holder creates one in Settings → Bot manager " +
-  "(VIP accounts) and puts it in this program's accounts file; a key from Settings → API Keys never holds manage:fleet.";
+  "Only a master key reads the fleet and its report. The account holder creates one in Settings → Bot manager " +
+  "(VIP accounts) and gives it to this program in its accounts file; a key from Settings → API Keys never holds manage:fleet.";
+
+const NEW_KEY =
+  "Ask the person for a new key for this account, to replace this one in the program's configuration: " +
+  "this one is invalid, expired or revoked.";
 
 /**
- * What to do next, for the API's refusals of a fleet read. Keyed by the API's error code.
+ * What to do next, for the API's refusals of a fleet read. Keyed by the API's error code
+ * (the answer's `error`), else by the client's own code for the status.
  */
-const NEXT_STEP = new Map<string, string>(Object.entries({
-  fleet_manager_off:
-    "The bot manager is switched off on this server, and a master key works only while it is on. " +
-    "Tell the person; nothing on this account can be read or planned until it is switched on.",
-  fleet_disabled:
-    "This master key's fleet is disabled. The account holder can enable it in Settings → Bot manager. " +
-    "Tell the person; do not retry until they have.",
-  key_not_accepted:
-    "Segnals issued this master key and the account holder has not accepted it yet. " +
-    "They accept or decline it in Settings → Bot manager.",
-  master_key_only: `This account's key is not a master key. ${MASTER_KEY_HINT} ` +
-    "Until then, segnals_list_bots shows the bots this key can read.",
-  insufficient_scope: MASTER_KEY_HINT,
-  use_fleet_plans:
-    "A master key reads only its own fleet. Use segnals_get_fleet, segnals_fleet_report and segnals_get_settings_catalog.",
-  unknown_engine: `Use one of the engines ${ENGINES.join(", ")}.`,
-  engine_not_served:
-    "This server does not serve that engine's catalog yet. Read another engine, or tell the person the server is older than the catalog.",
-  bad_period: `Use one of the periods ${REPORT_PERIODS.join(", ")}.`,
-}));
+const NEXT_STEP = new Map<string, string>(
+  Object.entries({
+    fleet_manager_off:
+      "The bot manager is switched off on this server, and a master key works only while it is on. " +
+      "Tell the person; nothing on this account can be read or planned until it is switched on.",
+    fleet_disabled:
+      "This master key's fleet is disabled. The account holder can enable it in Settings → Bot manager. " +
+      "Tell the person; do not retry until they have.",
+    key_not_accepted:
+      "Segnals issued this master key and the account holder has not accepted it yet. " +
+      "They accept or decline it in Settings → Bot manager.",
+    master_key_only:
+      `This account's key is not a master key. ${MASTER_KEY_HINT} ` +
+      "Until then, segnals_list_bots shows the bots this key can read.",
+    insufficient_scope: MASTER_KEY_HINT,
+    use_fleet_plans:
+      "A master key reads only its own fleet. Use segnals_get_fleet, segnals_fleet_report and segnals_get_settings_catalog.",
+    unknown_engine: `Use one of the engines ${ENGINES.join(", ")}.`,
+    engine_not_served:
+      "This server does not serve that engine's catalog yet. Read another engine, or tell the person the server is older than the catalog.",
+    bad_period: `Use one of the periods ${REPORT_PERIODS.join(", ")}.`,
+    invalid_api_key: NEW_KEY,
+    expired_api_key: NEW_KEY,
+    ip_not_allowed:
+      "The key is valid, but its IP allow-list does not include the machine this program runs on. " +
+      "The account holder can change the key's allow-list; do not ask for a new key.",
+    rate_limit_exceeded: "Each key may send 120 requests a minute. Wait as long as the message says, then retry once.",
+    server_error: "Retry once in a minute. If it fails again, tell the person the Segnals API is failing.",
+    network_error: "Check that SEGNALS_API_BASE names the right server and the network is up, then retry once.",
+  }),
+);
 
-/** The API answered 404 on a fleet route: the routes are hidden while the bot manager is off. */
-const FLEET_ROUTES_HIDDEN =
-  "The fleet routes answer 404 while the bot manager is off on this server (FLEET_MANAGER_ENABLED), " +
-  "or the server predates them. Tell the person; segnals_list_accounts shows which accounts can read a fleet.";
+/** Any other refusal: the API's own message says what it refused. */
+const TELL_THE_PERSON = "Tell the person what Segnals answered; do not send the same call again unchanged.";
+
+/**
+ * A 404 from a fleet route, to a key. While the bot manager is off a key never gets one: a master
+ * key is refused `fleet_manager_off` and a manual key `insufficient_scope`. So the route is missing.
+ */
+const FLEET_ROUTES_MISSING =
+  "This server has no fleet routes: it predates the bot manager (SPEC 453). Tell the person; " +
+  "nothing on this account can be read as a fleet here.";
+
+/** The scopes a ScopeError names, without the advice to add one to the key: a manual key never holds manage:fleet. */
+function scopeText(required: string | string[]): string {
+  const scopes = (Array.isArray(required) ? required : [required]).map((scope) => `\`${scope}\``);
+  return `Segnals refused this request (403): this key lacks the scope ${scopes.join(" or ")} that this read needs.`;
+}
+
+/** An error answer: what happened, then what to do next. */
+export function refusal(text: string, next: string): ToolResult {
+  return { content: [{ type: "text" as const, text: `${text}\n\nWhat to do next: ${next}` }], isError: true };
+}
 
 /**
  * A fleet read's error, with the next step. The message is the API's own (never the key),
  * followed by what to do about it.
  */
-export function fleetError(error: unknown, notFound: string = FLEET_ROUTES_HIDDEN): ToolResult {
-  let text: string;
-  let next: string | undefined;
-  if (error instanceof SegnalsApiError) {
-    text = error.message;
-    next = NEXT_STEP.get(error.apiError ?? error.errorCode);
-    if (next === undefined && error.statusCode === 404) next = notFound;
-    if (next === undefined && error.statusCode === 401) {
-      next = "Ask the person for a new key for this account and put it in the accounts file; this one is invalid, expired or revoked.";
-    }
-  } else {
-    text = `Error: ${error instanceof Error ? error.message : String(error)}`;
+export function fleetError(error: unknown, notFound: string = FLEET_ROUTES_MISSING): ToolResult {
+  if (!(error instanceof SegnalsApiError)) {
+    return refusal(`Error: ${error instanceof Error ? error.message : String(error)}`, TELL_THE_PERSON);
   }
-  return {
-    content: [{ type: "text" as const, text: next === undefined ? text : `${text}\n\nWhat to do next: ${next}` }],
-    isError: true,
-  };
+  const text = error instanceof ScopeError ? scopeText(error.requiredScope) : error.message;
+  const next =
+    NEXT_STEP.get(error.apiError ?? "") ??
+    NEXT_STEP.get(error.errorCode) ??
+    (error.statusCode === 404 ? notFound : error.statusCode === 401 ? NEW_KEY : TELL_THE_PERSON);
+  return refusal(text, next);
 }
 
 interface CatalogSetting {
@@ -144,10 +170,9 @@ export function registerFleetTools(server: McpServer, client: SegnalsClient): vo
         const catalog = await client.get<Catalog>("/settings/catalog", { engine });
         const answer = catalogAnswer(catalog, paths);
         if (answer === undefined) {
-          return fleetError(
-            new Error(
-              "The API's answer holds no settings list. The server may predate the settings catalog (SPEC 453); tell the person.",
-            ),
+          return refusal(
+            "The API's answer holds no settings list.",
+            "The server may predate the settings catalog (SPEC 453). Tell the person, and do not guess setting names.",
           );
         }
         return ok(answer);

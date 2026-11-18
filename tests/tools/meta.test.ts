@@ -93,9 +93,9 @@ describe("Meta tools", () => {
       expect(data.server).toBe("segnals-mcp");
       expect(data.tools).toEqual(TOOL_CATALOG);
       expect(data.tools.length).toBe(37);
-      expect(data.resources.map((resource: { uri_template: string }) => resource.uri_template)).toEqual([
-        "segnals://settings/{engine}",
-      ]);
+      expect(data.resources).toHaveLength(1);
+      expect(data.resources[0].uri_template).toBe("segnals://settings/{engine}");
+      expect(data.resources[0].engines).toEqual(["mt5", "bybit", "phemex", "grid"]);
     });
   });
 

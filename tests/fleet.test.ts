@@ -286,7 +286,7 @@ describe("Fleet reads", () => {
       answer(200, { engine: "grid" });
       const empty = await call(mcp, "segnals_get_settings_catalog", { engine: "grid" });
       expect(empty.isError).toBe(true);
-      expect(textOf(empty)).toContain("holds no settings list");
+      expect(textOf(empty)).toContain("holds no settings list.\n\nWhat to do next: ");
     });
   });
 
@@ -302,16 +302,23 @@ describe("Fleet reads", () => {
       expect(dataOf(result)).toEqual(FLEET);
     });
 
-    it("says what to do next for each refusal of the fleet routes", async () => {
+    it("says what to do next for each refusal, chosen by the API's error code", async () => {
       const mcp = await connect();
+      const NEW_KEY = "Ask the person for a new key for this account";
       const cases: [number, unknown, string][] = [
-        [404, { error: "not_found", message: "Not found" }, "FLEET_MANAGER_ENABLED"],
+        // A key never gets the 404 of a switched-off bot manager, so a 404 means the route is missing.
+        [404, { error: "not_found", message: "Not found" }, "it predates the bot manager"],
         [403, { error: "fleet_manager_off", message: "The bot manager is switched off." }, "a master key works only while it is on"],
         [403, { error: "fleet_disabled", message: "This master key's fleet is disabled." }, "can enable it in Settings → Bot manager"],
         [403, { error: "key_not_accepted", message: "Not accepted yet." }, "They accept or decline it in Settings → Bot manager"],
         [403, { error: "master_key_only", message: "Only a master key or the dashboard reads the fleet." }, "This account's key is not a master key"],
         [403, { error: "insufficient_scope", message: "This action requires the 'manage:fleet' scope", required: "manage:fleet" }, "never holds manage:fleet"],
-        [401, { error: "invalid_api_key", message: "API key revoked" }, "Ask the person for a new key for this account"],
+        [403, { error: "protected_bot", message: "This bot is protected." }, "Tell the person what Segnals answered"],
+        [401, { error: "invalid_api_key", message: "Invalid or revoked API key" }, NEW_KEY],
+        [401, { error: "expired_api_key", message: "API key has expired" }, NEW_KEY],
+        [401, { error: "ip_not_allowed", message: "Request IP not in key's allowlist" }, "do not ask for a new key"],
+        [429, { error: "rate_limit_exceeded", message: "Rate limit exceeded.", retry_after: 30 }, "then retry once"],
+        [500, { error: "internal", message: "boom" }, "Retry once in a minute"],
       ];
 
       for (const [status, body, next] of cases) {
@@ -319,9 +326,25 @@ describe("Fleet reads", () => {
         const result = await call(mcp, "segnals_get_fleet");
         expect(result.isError, next).toBe(true);
         expect(result.content[0].text).toBe("account: default");
-        expect(textOf(result), next).toContain("What to do next: ");
+        expect(textOf(result), next).toContain("\n\nWhat to do next: ");
         expect(textOf(result), next).toContain(next);
+        if (next !== NEW_KEY) expect(textOf(result), next).not.toContain(NEW_KEY);
       }
+
+      fetchMock.mockImplementation(async () => {
+        throw new TypeError("fetch failed");
+      });
+      expect(textOf(await call(mcp, "segnals_get_fleet"))).toContain("What to do next: Check that SEGNALS_API_BASE");
+    });
+
+    it("never tells the agent to add manage:fleet to a key", async () => {
+      answer(403, { error: "insufficient_scope", message: "This action requires the 'manage:fleet' scope", required: "manage:fleet" });
+      const mcp = await connect();
+
+      const text = textOf(await call(mcp, "segnals_get_fleet"));
+      expect(text).toContain("this key lacks the scope `manage:fleet` that this read needs");
+      expect(text).not.toContain("Add it to your key");
+      expect(text).not.toContain("create a new key with this scope");
     });
   });
 
@@ -467,6 +490,9 @@ describe("Fleet reads", () => {
         "Show the person the diff before anything is applied",
         "Apply only what the person approved",
         "Never say a real-money bot started until the plan says applied",
+        // The fleet step is for a master key only: a manual key never reads a fleet.
+        "If the account's key is a master key (it reads a fleet), read the fleet with segnals_get_fleet",
+        "A key from Settings → API Keys has no fleet; skip this step for it.",
       ]) {
         expect(SERVER_INSTRUCTIONS).toContain(rule);
       }

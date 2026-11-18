@@ -9,6 +9,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SegnalsClient } from "../client.js";
 import type { UserProfile } from "../types.js";
 import { ok, err } from "./helpers.js";
+import { ENGINES } from "./fleet.js";
 
 /** All available tools with their required scopes */
 const TOOL_CATALOG = [
@@ -68,7 +69,7 @@ const TOOL_CATALOG = [
 const RESOURCE_CATALOG = [
   {
     uri_template: "segnals://settings/{engine}",
-    engines: ["mt5", "bybit", "phemex", "grid"],
+    engines: [...ENGINES],
     scope: "(any valid key)",
     reads: "the settings catalog, as segnals_get_settings_catalog answers it, with the program's first account",
   },

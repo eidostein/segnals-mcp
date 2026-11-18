@@ -8,6 +8,7 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { randomBytes } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -29,7 +30,8 @@ const SPEC_453_TOOLS = [
 
 async function listTools() {
   const client = new SegnalsClient({
-    apiKey: "sk_live_testkey1234567890",
+    // A fake key made at run time, so no key-shaped literal sits in the repository.
+    apiKey: `sk_test_${randomBytes(12).toString("hex")}`,
     apiBase: "https://api.test.segnals.com",
     timeoutMs: 5000,
     maxRetries: 0,

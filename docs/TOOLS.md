@@ -269,7 +269,7 @@ scope has no tool yet.
 
 ## Settings catalog and fleet (SPEC 453)
 
-These read and change nothing; each carries `readOnlyHint`. Their errors end with "What to do next".
+The three tools read and change nothing. Each carries `readOnlyHint`, and each of their errors ends with "What to do next".
 
 ### `segnals_get_settings_catalog`
 - **Scope:** any valid key
@@ -287,7 +287,7 @@ These read and change nothing; each carries `readOnlyHint`. Their errors end wit
 - **Scope:** `manage:fleet` (a master key, created by the account holder in Settings → Bot manager)
 - **Purpose:** The fleet this master key manages, from `GET /fleet`. Read it before planning anything for the account
 - **Returns:** `account` (`tier`, `bot_limit`, `bot_count`) and `fleets`: the key's fleet with `id`, `status` (`active`, `stopped_all`, `disabled`), `policy` (the caps every change must fit), `bot_ids`, `counts`, and per allowed connection its `exchange`, `demo`, `currency` and `equity`. No email, username or billing
-- **Errors:** a 404 means the server's bot manager is off; `master_key_only`, `fleet_disabled`, `key_not_accepted` and `fleet_manager_off` each say what to do next
+- **Errors:** `fleet_manager_off` (the server's bot manager is off), `master_key_only` and `insufficient_scope` (not a master key), `fleet_disabled` and `key_not_accepted` each say what to do next. A 404 means the server predates the fleet routes
 - **Example:** `segnals_get_fleet()`
 
 ### `segnals_fleet_report`
