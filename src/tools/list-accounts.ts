@@ -41,6 +41,7 @@ export function registerListAccountsTool(server: McpServer, accounts: Accounts):
         .optional()
         .describe("Only this account. Leave it out to list every account."),
     },
+    { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
     async ({ account }): Promise<ToolResult> => {
       let chosen: Account[];
       try {

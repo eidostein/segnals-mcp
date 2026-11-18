@@ -1,6 +1,6 @@
 # Tools Reference
 
-The server has 34 tools. All are prefixed `segnals_` to avoid name collisions in multi-MCP setups.
+The server has 37 tools and one resource template, `segnals://settings/{engine}`. All tools are prefixed `segnals_` to avoid name collisions in multi-MCP setups.
 
 ## The `account` argument
 
@@ -266,4 +266,34 @@ scope has no tool yet.
 - **Purpose:** Update notification preferences (deep-merged, non-destructive)
 - **Valid keys:** `system_reminders`, `daily_report`, `performance_alerts`, `weekly_summary`, `custom_alerts`
 - **Example:** `segnals_set_notifications({ preferences: { daily_report: { enabled: true, hour_utc: 8 } } })`
+
+## Settings catalog and fleet (SPEC 453)
+
+These read and change nothing; each carries `readOnlyHint`. Their errors end with "What to do next".
+
+### `segnals_get_settings_catalog`
+- **Scope:** any valid key
+- **Params:** `engine` (required: `mt5`, `bybit`, `phemex` or `grid`), `paths` (optional: full paths such as `TRADING_PARAMS.LEVERAGE`, or blocks such as `MARTINGALE`)
+- **Purpose:** Every setting of one engine, from `GET /settings/catalog`. Read it before planning or changing any bot setting
+- **Returns:** `engine`, `version` (a hash of the catalog: unchanged means nothing changed), `generated_from` (the API's commit), `count` (settings in the catalog), and `settings`, each with `path`, `type`, `default`, `source`, `unit`, `range`, `depends_on`, `money`, `key_may_change`, `meaning_en`, `meaning_de` (and `venues` for bybit and phemex). With `paths`, also `returned` and `not_found`
+- **Example:** `segnals_get_settings_catalog({ engine: "bybit", paths: ["TRADING_PARAMS", "MARTINGALE.ENABLED"] })`
+
+### Resource `segnals://settings/{engine}`
+- **Scope:** any valid key
+- **Lists:** `segnals://settings/mt5`, `segnals://settings/bybit`, `segnals://settings/phemex`, `segnals://settings/grid`
+- **Reads:** the API's catalog for the engine, as JSON, with the first account the server holds. The catalog is the same for every key; to read it with another account, use `segnals_get_settings_catalog` with `account`
+
+### `segnals_get_fleet`
+- **Scope:** `manage:fleet` (a master key, created by the account holder in Settings → Bot manager)
+- **Purpose:** The fleet this master key manages, from `GET /fleet`. Read it before planning anything for the account
+- **Returns:** `account` (`tier`, `bot_limit`, `bot_count`) and `fleets`: the key's fleet with `id`, `status` (`active`, `stopped_all`, `disabled`), `policy` (the caps every change must fit), `bot_ids`, `counts`, and per allowed connection its `exchange`, `demo`, `currency` and `equity`. No email, username or billing
+- **Errors:** a 404 means the server's bot manager is off; `master_key_only`, `fleet_disabled`, `key_not_accepted` and `fleet_manager_off` each say what to do next
+- **Example:** `segnals_get_fleet()`
+
+### `segnals_fleet_report`
+- **Scope:** `read:stats`, on a master key
+- **Params:** `period` (optional: `24h`, `7d` default, `30d`)
+- **Purpose:** How the fleet is doing, from `GET /fleet/report`
+- **Returns:** `period`, `period_start`, `previous_start`, `fleets` (per fleet `account_currency`, `policy`, `kpis`, `previous`, and per bot `exchange`, `symbols`, `demo`, `status`, `kpis`, `previous`, `health`), and `totals` in USD. A KPI is null when it is not measured, never 0
+- **Example:** `segnals_fleet_report({ period: "30d" })`
 

@@ -9,6 +9,12 @@
  * Base class for all Segnals API errors.
  */
 export class SegnalsApiError extends Error {
+  /**
+   * The API's own error code, the `error` field of its answer (`fleet_manager_off`,
+   * `master_key_only`, `unknown_engine`, …), when it sent one. Tools read it to say what to do next.
+   */
+  apiError?: string;
+
   constructor(
     message: string,
     public readonly statusCode: number,

@@ -58,6 +58,20 @@ const TOOL_CATALOG = [
   // Notifications
   { name: "segnals_get_notifications", scope: "manage:notifications", type: "read" },
   { name: "segnals_set_notifications", scope: "manage:notifications", type: "write" },
+  // Fleet (SPEC 453): the settings catalog for any key; the fleet and its report for a master key
+  { name: "segnals_get_settings_catalog", scope: "(any valid key)", type: "read" },
+  { name: "segnals_get_fleet", scope: "manage:fleet", type: "read" },
+  { name: "segnals_fleet_report", scope: "read:stats", type: "read" },
+];
+
+/** The resources the server offers, beside its tools. */
+const RESOURCE_CATALOG = [
+  {
+    uri_template: "segnals://settings/{engine}",
+    engines: ["mt5", "bybit", "phemex", "grid"],
+    scope: "(any valid key)",
+    reads: "the settings catalog, as segnals_get_settings_catalog answers it, with the program's first account",
+  },
 ];
 
 const SAFETY_DISCLAIMER = `Segnals MCP — Risk & Safety Disclaimer
@@ -121,7 +135,8 @@ export function registerMetaTools(server: McpServer, client: SegnalsClient): voi
         version: "0.1.1",
         transport: "stdio",
         tools: TOOL_CATALOG,
-        note: "Tools marked with scope '(any valid key)' work with any valid API key. segnals_list_accounts needs no scope for the labels and key modes, which it reads locally. Other tools require the listed scope to be granted to your key. With several accounts, each tool call names one with the account argument, and the scopes are that account's key's.",
+        resources: RESOURCE_CATALOG,
+        note: "Tools marked with scope '(any valid key)' work with any valid API key. segnals_list_accounts needs no scope for the labels and key modes, which it reads locally. Other tools require the listed scope to be granted to your key. manage:fleet is held only by a master key, which the account holder creates in Settings → Bot manager; segnals_get_fleet and segnals_fleet_report answer a master key only. With several accounts, each tool call names one with the account argument, and the scopes are that account's key's.",
       });
     },
   );
@@ -137,4 +152,4 @@ export function registerMetaTools(server: McpServer, client: SegnalsClient): voi
   );
 }
 
-export { TOOL_CATALOG, SAFETY_DISCLAIMER };
+export { TOOL_CATALOG, RESOURCE_CATALOG, SAFETY_DISCLAIMER };

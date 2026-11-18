@@ -54,4 +54,13 @@ describe("tools/list", () => {
     expect(before).toHaveLength(33);
     await expect(`${JSON.stringify(before, null, 2)}\n`).toMatchFileSnapshot("./__snapshots__/tools-0.1.1.json");
   });
+
+  it("answers the 33 tools of 0.1.1 plus the SPEC 453 tools built so far", async () => {
+    // S3 and S9 have built these four of the eight; S11 adds the plan tools and makes it 33 + 8.
+    const built = ["segnals_list_accounts", "segnals_get_settings_catalog", "segnals_get_fleet", "segnals_fleet_report"];
+    const names = (await listTools()).map((tool) => tool.name);
+
+    expect(names).toHaveLength(33 + built.length);
+    expect(names.filter((name) => SPEC_453_TOOLS.includes(name)).sort()).toEqual([...built].sort());
+  });
 });

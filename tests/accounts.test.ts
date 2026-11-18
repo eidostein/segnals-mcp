@@ -147,7 +147,8 @@ describe("Several accounts", () => {
     expect(tools.map((tool) => tool.name).sort()).toEqual(TOOL_CATALOG.map((tool) => tool.name).sort());
     const walked = tools.filter((tool) => tool.name !== LISTS_ACCOUNTS);
     expect(walked).toHaveLength(TOOL_CATALOG.length - 1);
-    expect(walked).toHaveLength(33);
+    // The 33 tools of 0.1.1 and the fleet reads segnals_get_settings_catalog, segnals_get_fleet and segnals_fleet_report.
+    expect(walked).toHaveLength(33 + 3);
 
     for (const tool of walked) {
       const account = (tool.inputSchema as JsonSchema & { properties: Record<string, { description?: string }> })
@@ -331,22 +332,34 @@ describe("Capturing the tools of one account", () => {
     );
   });
 
-  it("stops at start on a tool registered with annotations, or with an account argument of its own", () => {
+  it("reads a tool registered with annotations before the handler, and keeps them", () => {
     const answer = async () => ({ content: [] });
     const withAnnotations = (server: McpServer) => {
       server.tool("segnals_x", "x", { id: z.number() }, { readOnlyHint: true }, answer);
     };
+
+    const tools = captureTools(client, withAnnotations);
+    expect(tools.get("segnals_x")?.annotations).toEqual({ readOnlyHint: true });
+    expect(tools.get("segnals_x")?.handler).toBe(answer);
+    expect(Object.keys(tools.get("segnals_x")?.shape ?? {})).toEqual(["id"]);
+  });
+
+  it("stops at start on a tool registered in another form, or with an account argument of its own", () => {
+    const answer = async () => ({ content: [] });
     const withoutDescription = (server: McpServer) => {
       server.tool("segnals_x", { id: z.number() }, answer);
+    };
+    const annotationsAsHandler = (server: McpServer) => {
+      (server.tool as (...args: unknown[]) => void)("segnals_x", "x", { id: z.number() }, null, answer);
     };
     const withAccount = (server: McpServer) => {
       server.tool("segnals_x", "x", { account: z.string() }, answer);
     };
 
-    expect(() => captureTools(client, withAnnotations)).toThrow(
-      "Tool segnals_x is not registered as tool(name, description, shape, handler).",
+    expect(() => captureTools(client, withoutDescription)).toThrow(
+      "Tool segnals_x is not registered as tool(name, description, shape, [annotations,] handler).",
     );
-    expect(() => captureTools(client, withoutDescription)).toThrow("is not registered as tool(");
+    expect(() => captureTools(client, annotationsAsHandler)).toThrow("is not registered as tool(");
     expect(() => captureTools(client, withAccount)).toThrow('Tool segnals_x has its own "account" argument');
   });
 });

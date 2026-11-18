@@ -217,20 +217,32 @@ export class SegnalsClient {
       return body as T;
     }
 
+    const error = this.errorFor(response, body, path);
+    // The API's own code, so a tool can say what to do next (`fleet_manager_off`, `master_key_only`, …).
+    if (typeof body.error === "string") {
+      error.apiError = body.error;
+    }
+    throw error;
+  }
+
+  /**
+   * The typed error for a failed response.
+   */
+  private errorFor(response: Response, body: Record<string, unknown>, path: string): SegnalsApiError {
     const detail = (body.message as string) ?? (body.msg as string) ?? "";
 
     switch (response.status) {
       case 401:
-        throw new ApiKeyError(detail || undefined);
+        return new ApiKeyError(detail || undefined);
 
       case 403: {
         // A 403 is a missing scope only when the API names the scope. It also refuses
         // protected bots, tier limits and frozen accounts, and says which in its message.
         const required = body.required;
         if (typeof required === "string" || Array.isArray(required)) {
-          throw new ScopeError(required as string | string[]);
+          return new ScopeError(required as string | string[]);
         }
-        throw new ForbiddenError(detail || undefined);
+        return new ForbiddenError(detail || undefined);
       }
 
       case 429: {
@@ -238,11 +250,11 @@ export class SegnalsClient {
           response.headers.get("Retry-After") ?? String(body.retry_after ?? ""),
           10,
         );
-        throw new RateLimitError(isNaN(retryAfter) ? undefined : retryAfter);
+        return new RateLimitError(isNaN(retryAfter) ? undefined : retryAfter);
       }
 
       case 404:
-        throw new SegnalsApiError(
+        return new SegnalsApiError(
           `Resource not found: ${path}. ${detail}`,
           404,
           "not_found",
@@ -250,9 +262,9 @@ export class SegnalsClient {
 
       default:
         if (response.status >= 500) {
-          throw new ServerError(response.status, detail || undefined);
+          return new ServerError(response.status, detail || undefined);
         }
-        throw new SegnalsApiError(
+        return new SegnalsApiError(
           detail || `API request failed with status ${response.status}`,
           response.status,
           "api_error",
