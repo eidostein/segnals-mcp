@@ -89,6 +89,8 @@ const UNMEASURED = {
   profit_factor: null,
   expectancy: null,
   trades: 0,
+  open_positions: null,
+  unrealised_pnl: null,
   max_drawdown_pct: null,
   current_drawdown_pct: null,
   margin_used_pct: null,
@@ -360,6 +362,30 @@ describe("Fleet reads", () => {
       const [fleet] = data.fleets as { kpis: Record<string, unknown> }[];
       expect(fleet.kpis.net_pnl).toBeNull();
       expect(fleet.kpis.win_rate_pct).toBeNull();
+    });
+
+    it("names what a bot holds now, and passes it through: trades 0 is not flat (segnals-test #2379)", async () => {
+      // Staging bot 199 held an AVAX short for two hours while the report read trades 0 and net P&L 0.00.
+      const held = { ...UNMEASURED, open_positions: 1, unrealised_pnl: 11.11, margin_used_pct: 0.26 };
+      const none = { ...UNMEASURED, open_positions: null, unrealised_pnl: null };
+      const [fleet] = REPORT.fleets;
+      const [bot] = fleet.bots;
+      const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT", "AVAXUSDT"];
+      const report = {
+        ...REPORT,
+        fleets: [{ ...fleet, kpis: held, previous: none, bots: [{ ...bot, symbols, kpis: held, previous: none }] }],
+        totals: { currency: "USD", kpis: held, previous: none },
+      };
+      answer(200, report);
+      const mcp = await connect();
+
+      const { tools } = await mcp.listTools();
+      const description = tools.find((tool) => tool.name === "segnals_fleet_report")?.description ?? "";
+      for (const field of ["open_positions", "unrealised_pnl", "margin_used_pct"]) expect(description).toContain(field);
+      expect(description).toContain("trades and net_pnl count closed trades only");
+
+      const data = dataOf(await call(mcp, "segnals_fleet_report"));
+      expect(data).toEqual(report);
     });
 
     it("sends the period asked for, and refuses another before sending", async () => {
