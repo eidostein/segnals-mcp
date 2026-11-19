@@ -34,6 +34,8 @@ import { registerWriteMarketplaceTools } from "./write-marketplace.js";
 
 // Fleet reads (SPEC 453): the settings catalog, the fleet and its report
 import { registerFleetTools } from "./fleet.js";
+// Fleet plans (SPEC 453): check, read, apply, stop all
+import { registerFleetPlanTools } from "./fleet-plans.js";
 
 export type Handler = (args: Record<string, unknown>, extra: unknown) => ToolResult | Promise<ToolResult>;
 
@@ -64,6 +66,9 @@ function registerModules(server: McpServer, client: SegnalsClient): void {
 
   // Fleet reads (SPEC 453)
   registerFleetTools(server, client);
+
+  // Fleet plans (SPEC 453)
+  registerFleetPlanTools(server, client);
 }
 
 /**

@@ -24,7 +24,7 @@ const BASE = "https://api.test.segnals.com";
 const KEY_A = `sk_test_plantedkey_${randomBytes(12).toString("hex")}`;
 const KEY_B = `sk_test_plantedkey_${randomBytes(12).toString("hex")}`;
 
-/** The eight tools SPEC 453 §3.9 adds. Those this server has so far are walked below. */
+/** The eight tools SPEC 453 §3.9 adds, walked below. */
 const SPEC_453_TOOLS = [
   "segnals_list_accounts",
   "segnals_get_settings_catalog",
@@ -420,10 +420,9 @@ describe("Fleet reads", () => {
       const { tools } = await mcp.listTools();
       const walked = tools.filter((tool) => SPEC_453_TOOLS.includes(tool.name));
 
-      // S3 and S9 have built four of the eight; S11 adds the plan tools.
-      expect(walked.map((tool) => tool.name).sort()).toEqual(
-        ["segnals_fleet_report", "segnals_get_fleet", "segnals_get_settings_catalog", "segnals_list_accounts"],
-      );
+      // All eight: S3 and S9 built four, S11 the plan tools.
+      expect(walked.map((tool) => tool.name).sort()).toEqual([...SPEC_453_TOOLS].sort());
+      expect(walked).toHaveLength(8);
       for (const tool of walked) {
         const type = TOOL_CATALOG.find((entry) => entry.name === tool.name)?.type;
         if (type === "read") {

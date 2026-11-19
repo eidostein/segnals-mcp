@@ -26,8 +26,18 @@ export interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: Record<string, unknown>;
   params?: Record<string, string | number | boolean | undefined>;
+  /**
+   * Extra request headers, such as `Idempotency-Key`. One named `Authorization`, `Accept` or
+   * `Content-Type`, in any case, is dropped: the client sets those itself.
+   */
+  headers?: Record<string, string>;
   /** Override the default timeout for this request */
   timeoutMs?: number;
+  /**
+   * Override the retries on a 5xx or a network failure for this request. 0 for a write whose
+   * repeat the caller must decide on after reading the state.
+   */
+  retries?: number;
 }
 
 export interface ApiResponse<T = unknown> {
@@ -70,7 +80,7 @@ export class SegnalsClient {
    * @throws {NetworkError} on network failures
    */
   async request<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
-    const { method = "GET", body, params, timeoutMs } = options;
+    const { method = "GET", body, params, timeoutMs, headers: extraHeaders, retries = this.maxRetries } = options;
 
     // Build URL with query parameters
     let url = `${this.apiBase}${path}`;
@@ -87,7 +97,13 @@ export class SegnalsClient {
       }
     }
 
+    // An extra header never stands in for the ones the client sets, whatever its case.
+    const own = new Set(["authorization", "accept", "content-type"]);
+    const extra = Object.fromEntries(
+      Object.entries(extraHeaders ?? {}).filter(([name]) => !own.has(name.toLowerCase())),
+    );
     const headers: Record<string, string> = {
+      ...extra,
       Authorization: `Bearer ${this.apiKey}`,
       Accept: "application/json",
     };
@@ -101,7 +117,7 @@ export class SegnalsClient {
 
     // Retry loop with exponential backoff
     let lastError: Error | undefined;
-    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         const response = await this.fetchWithTimeout(url, fetchOptions, timeoutMs);
         return await this.handleResponse<T>(response, path);
@@ -114,7 +130,7 @@ export class SegnalsClient {
         }
 
         // Don't retry on the last attempt
-        if (attempt === this.maxRetries) {
+        if (attempt === retries) {
           break;
         }
 

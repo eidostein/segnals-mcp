@@ -260,10 +260,13 @@ The API key is a confidential credential. Never print, echo, log, or paste the u
 | "Which settings does a Bybit bot have?" | `segnals_get_settings_catalog({ engine: "bybit" })` |
 | "Show my fleet" / "What may the agent do here?" | `segnals_get_fleet` (master key) |
 | "How is the fleet doing this month?" | `segnals_fleet_report({ period: "30d" })` (master key) |
+| "Add three Bybit bots to the fleet" | `segnals_plan_fleet({ items: [...] })`, show the diff, then `segnals_apply_fleet_plan({ plan_id, confirm: true })` ✋ (master key) |
+| "Did the plan go through?" | `segnals_get_fleet_plan({ plan_id })` (master key) |
+| "Stop everything now" | `segnals_stop_all_fleet` (master key) |
 
 ---
 
-## 7. Available Tools (37 total)
+## 7. Available Tools (41 total)
 
 Every tool takes `account`, the label of the account to act on. With one account it is
 optional; with several it is required, and the answer of a call without it lists the labels.
@@ -344,8 +347,17 @@ one whose `key_may_change` is false. Never guess a setting name.
 - `segnals_fleet_report` — KPIs per bot, per fleet and in total for 24h, 7d (default) or 30d, against the period before, with each bot's health
 
 Only a master key reads these. The account holder creates it in Settings → Bot manager. A KPI that is null was
-not measured: say so, never report it as 0. Plan per account, show the person the diff, and apply only what the
-person approved.
+not measured: say so, never report it as 0.
+
+### Fleet plans (master key: `manage:fleet`)
+- `segnals_plan_fleet` — check a plan of creates, updates, starts, stops and deletes. It changes no bot and answers each item's diff and risk, the totals against the caps, and every refusal (item, path, code)
+- `segnals_get_fleet_plan` — one plan, its items and their statuses; follow an apply with it until it says `applied`
+- `segnals_apply_fleet_plan` ✋ — preview the stored plan, then apply it with `confirm: true`, once (the tool sends an `Idempotency-Key` made from the plan id)
+- `segnals_stop_all_fleet` — stop every bot of the fleet at once, no preview; only the account holder resumes the fleet
+
+Plan per account, show the person the diff, and apply only what the person approved. A master key changes its
+fleet through plans only: the other write tools answer it `use_fleet_plans`. Never say a real-money bot started
+until the plan says `applied`.
 
 ---
 

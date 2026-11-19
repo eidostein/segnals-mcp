@@ -3,7 +3,7 @@
 /**
  * Segnals MCP Server — Entry Point
  *
- * Starts a stdio-based MCP server that exposes 37 tools and the resource template
+ * Starts a stdio-based MCP server that exposes 41 tools and the resource template
  * segnals://settings/{engine} for managing Segnals trading bots, strategies, fleets and
  * portfolio via AI agents.
  *
@@ -33,7 +33,7 @@ const config = loadAccounts();
 const server = new McpServer(
   {
     name: "segnals-mcp",
-    version: "0.1.1",
+    version: "0.2.0",
   },
   { instructions: SERVER_INSTRUCTIONS },
 );

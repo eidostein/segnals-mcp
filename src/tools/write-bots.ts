@@ -13,7 +13,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SegnalsClient } from "../client.js";
 import type { BotDetail } from "../types.js";
-import { ok, err } from "./helpers.js";
+import { ok, err, isUseFleetPlans } from "./helpers.js";
 import { SAFETY_DISCLAIMER } from "./meta.js";
 import { mergeConfig, riskWarnings } from "./risk.js";
 
@@ -111,7 +111,8 @@ IMPORTANT: Never include exchange API keys/secrets in the config — users enter
               const data = await client.get<{ bot: BotDetail } | BotDetail>(`/bots/${bot_id}`);
               const bot = "bot" in data ? data.bot : data;
               warnings = riskWarnings(mergeConfig(bot.config || {}, config));
-            } catch {
+            } catch (error) {
+              if (isUseFleetPlans(error)) return err(error);
               // Without read:bots the stored config is out of reach: judge what the update names.
               warnings = riskWarnings(config, { missingStopLoss: null });
               warningsBasis = "only the keys in this update (the bot's stored config could not be read)";
@@ -298,7 +299,8 @@ WARNING: This action is PERMANENT and cannot be undone. The bot must be stopped 
               `/bots/${bot_id}`,
             );
             botName = `'${botInfo.bot.name}' (${botInfo.bot.exchange}, ${botInfo.bot.status})`;
-          } catch {
+          } catch (error) {
+            if (isUseFleetPlans(error)) return err(error);
             // If we can't fetch info, still show the preview with just the ID
           }
 

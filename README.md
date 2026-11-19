@@ -94,7 +94,7 @@ The **Segnals MCP Server** is a thin, secure gateway designed for the Model Cont
 
 ## Features & Capability Overview
 
-The server exposes **37 distinct tools** and one resource template structured across the following trading features:
+The server exposes **41 distinct tools** and one resource template structured across the following trading features:
 
 *   **Several Accounts**: Hold one key per account under a label, list them, and name the account on every call.
 *   **Account & Meta**: Verify the key and read the account tier, subscription, and which exchanges are connected.
@@ -104,7 +104,7 @@ The server exposes **37 distinct tools** and one resource template structured ac
 *   **Copy Trading & Marketplace**: Browse listings, copy paid or free strategies, and manage public offerings.
 *   **Market Feed**: Read the market newsfeed.
 *   **Settings Catalog**: Every setting of each engine (mt5, bybit, phemex, grid) with its type, unit, range, default, meaning and money flag, as a tool and as the resource `segnals://settings/{engine}`.
-*   **Fleet (master key)**: Read the fleet a master key manages, with its policy and allowed connections, and the fleet's KPI report for 24h, 7d or 30d.
+*   **Fleet (master key)**: Read the fleet a master key manages, with its policy and allowed connections, and the fleet's KPI report for 24h, 7d or 30d. Check a plan of many changes (it changes nothing), apply a checked plan the person approved, follow it, and stop every bot of the fleet at once.
 
 *For inputs, outputs, and JSON examples for each tool, see the [Tool Reference Guide](docs/TOOLS.md).*
 
@@ -274,7 +274,7 @@ For detailed information, see the [Authentication Documentation](docs/AUTHENTICA
 
 ## Tool Reference
 
-The following table summarizes the **37 tools** exposed by the Segnals MCP server. Every tool takes `account`, the label of the account to act on: optional with one account, required with several (except `segnals_list_accounts`, where it only narrows the list).
+The following table summarizes the **41 tools** exposed by the Segnals MCP server. Every tool takes `account`, the label of the account to act on: optional with one account, required with several (except `segnals_list_accounts`, where it only narrows the list).
 
 | Tool Name | Operation | Description | Required Scope | Confirmation |
 |---|---|---|---|---|
@@ -315,8 +315,12 @@ The following table summarizes the **37 tools** exposed by the Segnals MCP serve
 | `segnals_get_settings_catalog` | Read | Every setting of an engine: path, type, unit, range, default, meaning, money flag. | any valid key | No |
 | `segnals_get_fleet` | Read | The master key's fleet: policy, bots, allowed connections, bot limit. | `manage:fleet` | No |
 | `segnals_fleet_report` | Read | The fleet's KPIs per bot, per fleet and in total, and each bot's health. | `read:stats` | No |
+| `segnals_plan_fleet` | Read | Check a plan of changes to the fleet: diff, risk, refusals. Changes no bot. | `manage:fleet` | No |
+| `segnals_get_fleet_plan` | Read | One plan, its items and their statuses. | `manage:fleet` | No |
+| `segnals_apply_fleet_plan` | Write | Apply a checked plan the person approved, once (Idempotency-Key). | `manage:fleet` | ✋ **Yes** |
+| `segnals_stop_all_fleet` | Control | Stop every bot of the fleet at once. Only the account holder resumes it. | `manage:fleet` | No |
 
-The resource template `segnals://settings/{engine}` (mt5, bybit, phemex, grid) holds the same catalog as `segnals_get_settings_catalog`, read with the first account the server holds. `segnals_get_fleet` and `segnals_fleet_report` answer only a master key, which the account holder creates in Settings → Bot manager, and only while the server's bot manager is on. The fleet reads carry `readOnlyHint`. The server's instructions tell the agent to read the catalog first, plan per account, show the person the diff, and apply only what the person approved.
+The resource template `segnals://settings/{engine}` (mt5, bybit, phemex, grid) holds the same catalog as `segnals_get_settings_catalog`, read with the first account the server holds. The fleet and plan tools answer only a master key, which the account holder creates in Settings → Bot manager, and only while the server's bot manager is on. A master key changes its fleet through plans only: every other write tool answers it 403 `use_fleet_plans`, and the answer names the fleet tools. The fleet reads and `segnals_plan_fleet` carry `readOnlyHint`; `segnals_apply_fleet_plan` and `segnals_stop_all_fleet` carry `destructiveHint`. The server's instructions tell the agent to read the catalog first, plan per account, show the person the diff, and apply only what the person approved.
 
 *For complete usage specifications, see [docs/TOOLS.md](docs/TOOLS.md).*
 
