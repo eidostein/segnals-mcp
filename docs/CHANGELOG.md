@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `segnals_fleet_report` names what the report now carries (segnals-test #2379): `open_positions` and `unrealised_pnl` per bot, per fleet and in the totals, every symbol a bot trades, and that `trades` and `net_pnl` count closed trades only, so a bot can read trades 0 while it holds a position. The tool still passes the server's JSON through unchanged
+
 ## [0.2.0] — 2026-11-19
 
 ### Added

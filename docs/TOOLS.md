@@ -294,7 +294,7 @@ The three tools read and change nothing. Each carries `readOnlyHint`, and each o
 - **Scope:** `read:stats`, on a master key
 - **Params:** `period` (optional: `24h`, `7d` default, `30d`)
 - **Purpose:** How the fleet is doing, from `GET /fleet/report`
-- **Returns:** `period`, `period_start`, `previous_start`, `fleets` (per fleet `account_currency`, `policy`, `kpis`, `previous`, and per bot `exchange`, `symbols`, `demo`, `status`, `kpis`, `previous`, `health`), and `totals` in USD. A KPI is null when it is not measured, never 0
+- **Returns:** `period`, `period_start`, `previous_start`, `fleets` (per fleet `account_currency`, `policy`, `kpis`, `previous`, and per bot `exchange`, `symbols`, `demo`, `status`, `kpis`, `previous`, `health`), and `totals` in USD. A KPI is null when it is not measured, never 0. `trades` and `net_pnl` count closed trades; `open_positions` and `unrealised_pnl` (with `margin_used_pct`) are what each bot, fleet and the total hold now, and are null in `previous`. A fleet's or the total's exposure is null when one bot's is not measured
 - **Errors:** as `segnals_get_fleet`, except a 404: a key from Settings → API Keys holding `read:stats` gets it while the bot manager is off, so it means switched off or an older server
 - **Example:** `segnals_fleet_report({ period: "30d" })`
 
