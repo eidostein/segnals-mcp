@@ -1,6 +1,6 @@
 # Tools Reference
 
-The server has 41 tools and one resource template, `segnals://settings/{engine}`. All tools are prefixed `segnals_` to avoid name collisions in multi-MCP setups.
+The server has 39 tools and one resource template, `segnals://settings/{engine}`. All tools are prefixed `segnals_` to avoid name collisions in multi-MCP setups.
 
 ## The `account` argument
 
@@ -238,20 +238,6 @@ called.
 
 Market sentiment, live prices and help search have no tool, and the `read:knowledge`
 scope has no tool yet.
-
-## Copy Trading
-
-### `segnals_get_copy_trading`
-- **Scope:** `read:account`
-- **Purpose:** Get copy trading configuration and status
-- **Example:** `segnals_get_copy_trading()`
-
-### `segnals_control_copy_trading` ✋
-- **Scope:** `control:bots`
-- **Params:** `action` (required: "start" | "stop"), `exchange` (required: "bybit" | "phemex"), `confirm` (boolean)
-- **Purpose:** Start or stop copy trading for an exchange
-- **Requires:** VIP tier
-- **Example:** `segnals_control_copy_trading({ action: "start", exchange: "bybit", confirm: true })`
 
 ## Notifications
 

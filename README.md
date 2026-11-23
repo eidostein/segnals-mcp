@@ -94,14 +94,14 @@ The **Segnals MCP Server** is a thin, secure gateway designed for the Model Cont
 
 ## Features & Capability Overview
 
-The server exposes **41 distinct tools** and one resource template structured across the following trading features:
+The server exposes **39 distinct tools** and one resource template structured across the following trading features:
 
 *   **Several Accounts**: Hold one key per account under a label, list them, and name the account on every call.
 *   **Account & Meta**: Verify the key and read the account tier, subscription, and which exchanges are connected.
 *   **Stats**: Read the dashboard and profit/loss for a period (24h, 7d, 30d, all, or a date range), per-bot performance, and trades.
 *   **Life Cycle Control**: Create, update, start, stop, restart, and delete bots.
 *   **Indicator Filter**: Switch the ADX, RSI, EMA, and ATR gates of a bot's indicator filter on or off and set their parameters.
-*   **Copy Trading & Marketplace**: Browse listings, copy paid or free strategies, and manage public offerings.
+*   **Marketplace**: Browse listings, copy paid or free strategies, and manage public offerings.
 *   **Market Feed**: Read the market newsfeed.
 *   **Settings Catalog**: Every setting of each engine (mt5, bybit, phemex, grid) with its type, unit, range, default, meaning and money flag, as a tool and as the resource `segnals://settings/{engine}`.
 *   **Fleet (master key)**: Read the fleet a master key manages, with its policy and allowed connections, and the fleet's KPI report for 24h, 7d or 30d. Check a plan of many changes (it changes nothing), apply a checked plan the person approved, follow it, and stop every bot of the fleet at once.
@@ -258,7 +258,7 @@ The server utilizes scoped access tokens to restrict API permissions. The follow
 | `read:stats` | Performance | View PnL statistics, drawdown ratios, and trade logs. |
 | `read:bots` | Bots | View current active/inactive trading bots and their configs. |
 | `write:bots` | Bots | Create, update, and delete trading bots; set indicator filters. |
-| `control:bots` | Bots | Start, stop, and restart trading bots; start or stop copy trading. |
+| `control:bots` | Bots | Start, stop, and restart trading bots. |
 | `write:strategies` | Strategies | Create a bot with a full strategy configuration in one call. |
 | `read:marketplace` | Marketplace | Search public listings and view pricing details. |
 | `write:marketplace` | Marketplace | Publish strategies and manage personal marketplace offerings. |
@@ -274,7 +274,7 @@ For detailed information, see the [Authentication Documentation](docs/AUTHENTICA
 
 ## Tool Reference
 
-The following table summarizes the **41 tools** exposed by the Segnals MCP server. Every tool takes `account`, the label of the account to act on: optional with one account, required with several (except `segnals_list_accounts`, where it only narrows the list).
+The following table summarizes the **39 tools** exposed by the Segnals MCP server. Every tool takes `account`, the label of the account to act on: optional with one account, required with several (except `segnals_list_accounts`, where it only narrows the list).
 
 | Tool Name | Operation | Description | Required Scope | Confirmation |
 |---|---|---|---|---|
@@ -308,8 +308,6 @@ The following table summarizes the **41 tools** exposed by the Segnals MCP serve
 | `segnals_copy_strategy` | Write | Copy a marketplace strategy (free or paid). | `write:marketplace` | ✋ **Yes** |
 | `segnals_publish_listing` | Write | Publish a bot as a marketplace listing (VIP). | `write:marketplace` | ✋ **Yes** |
 | `segnals_get_news` | Read | Market newsfeed. | `read:news` | No |
-| `segnals_get_copy_trading` | Read | Copy trading config and status. | `read:account` | No |
-| `segnals_control_copy_trading` | Control | Start or stop copy trading (VIP). | `control:bots` | ✋ **Yes** |
 | `segnals_get_notifications` | Read | Notification preferences. | `manage:notifications` | No |
 | `segnals_set_notifications` | Write | Update notification preferences. | `manage:notifications` | No |
 | `segnals_get_settings_catalog` | Read | Every setting of an engine: path, type, unit, range, default, meaning, money flag. | any valid key | No |

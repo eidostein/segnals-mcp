@@ -27,7 +27,10 @@ const KEY_B = `sk_test_plantedkey_${randomBytes(12).toString("hex")}`;
 
 const PLAN_ID = randomUUID();
 
-/** The eight tools SPEC 453 §3.9 adds; the others are the 33 of 0.1.1. */
+/**
+ * The eight tools SPEC 453 §3.9 adds; the others are the 31 of 0.1.1 that remain (its two copy
+ * trading tools were removed with copy trading, segnals-test #2094).
+ */
 const SPEC_453_TOOLS = [
   "segnals_list_accounts",
   "segnals_get_settings_catalog",
@@ -647,7 +650,7 @@ describe("Fleet plans", () => {
       const old = tools.filter((tool) => !SPEC_453_TOOLS.includes(tool.name));
       const sending: string[] = [];
 
-      expect(old).toHaveLength(33);
+      expect(old).toHaveLength(31);
       for (const tool of old) {
         const before = fetchMock.mock.calls.length;
         const result = await call(mcp, tool.name, argumentsFor(tool.inputSchema as JsonSchema));
@@ -665,7 +668,7 @@ describe("Fleet plans", () => {
       }
 
       // Every tool but the two that answer locally sent its request and was walked.
-      expect(sending).toHaveLength(31);
+      expect(sending).toHaveLength(29);
       expect(old.map((tool) => tool.name).filter((name) => !sending.includes(name)).sort()).toEqual(LOCAL_TOOLS);
     });
 
@@ -678,7 +681,7 @@ describe("Fleet plans", () => {
       );
       const reading: string[] = [];
 
-      expect(previews).toHaveLength(9);
+      expect(previews).toHaveLength(8);
       for (const tool of previews) {
         const schema = tool.inputSchema as JsonSchema;
         const args: Record<string, unknown> = { ...argumentsFor(schema), confirm: false };

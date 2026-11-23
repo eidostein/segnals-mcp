@@ -53,9 +53,6 @@ const TOOL_CATALOG = [
   { name: "segnals_publish_listing", scope: "write:marketplace", type: "write", confirm: true },
   // News (read). The read:knowledge scope has no tool yet.
   { name: "segnals_get_news", scope: "read:news", type: "read" },
-  // Copy trading
-  { name: "segnals_get_copy_trading", scope: "read:account", type: "read" },
-  { name: "segnals_control_copy_trading", scope: "control:bots", type: "write", confirm: true },
   // Notifications
   { name: "segnals_get_notifications", scope: "manage:notifications", type: "read" },
   { name: "segnals_set_notifications", scope: "manage:notifications", type: "write" },

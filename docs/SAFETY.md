@@ -8,7 +8,7 @@
 - ✅ List, inspect, and explain your bot configurations
 - ✅ Browse the strategy marketplace and view listings
 - ✅ Read the market newsfeed
-- ✅ View your notification preferences and copy trading status
+- ✅ View your notification preferences
 
 ### Write Operations (with confirmation)
 - ✅ Create, update, and delete trading bots
@@ -17,7 +17,6 @@
 - ✅ Configure indicator filters (ADX, RSI, EMA, ATR)
 - ✅ Copy strategies from the marketplace
 - ✅ Publish your strategies to the marketplace
-- ✅ Control copy trading (start/stop per exchange)
 - ✅ Update notification preferences
 
 ---
@@ -64,7 +63,6 @@ All destructive or high-impact operations use a **two-step confirmation pattern*
 | `segnals_create_strategy` ✋ | Medium | Creates bot + applies full config |
 | `segnals_copy_strategy` ✋ | Medium | Creates bot from marketplace listing |
 | `segnals_publish_listing` ✋ | Low | Submits for admin review |
-| `segnals_control_copy_trading` ✋ | High | Starts/stops trade mirroring |
 | `segnals_apply_fleet_plan` ✋ | High | Creates, changes, starts, stops and deletes the fleet's bots as the checked plan says |
 
 ### Tools WITHOUT Confirmation (safe by nature)

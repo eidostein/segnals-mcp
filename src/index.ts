@@ -3,7 +3,7 @@
 /**
  * Segnals MCP Server — Entry Point
  *
- * Starts a stdio-based MCP server that exposes 41 tools and the resource template
+ * Starts a stdio-based MCP server that exposes 39 tools and the resource template
  * segnals://settings/{engine} for managing Segnals trading bots, strategies, fleets and
  * portfolio via AI agents.
  *

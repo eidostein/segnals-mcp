@@ -24,7 +24,6 @@ import { registerStatsTools } from "./stats.js";
 import { registerBotsTools } from "./bots.js";
 import { registerMarketplaceTools } from "./marketplace.js";
 import { registerNewsTools } from "./news.js";
-import { registerCopyTradingTools } from "./copy-trading.js";
 import { registerNotificationTools } from "./notifications.js";
 
 // Write/control tools (Phase 3)
@@ -56,7 +55,6 @@ function registerModules(server: McpServer, client: SegnalsClient): void {
   registerBotsTools(server, client);
   registerMarketplaceTools(server, client);
   registerNewsTools(server, client);
-  registerCopyTradingTools(server, client);
   registerNotificationTools(server, client);
 
   // Write/control tools (Phase 3)

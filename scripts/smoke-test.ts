@@ -6,8 +6,8 @@
  *
  * This test verifies:
  * 1. The server can be instantiated without errors
- * 2. All 41 tools are registered with valid names
- * 3. dist/index.js starts and answers `tools/list` over stdio with the same 41 tools,
+ * 2. All 39 tools are registered with valid names
+ * 3. dist/index.js starts and answers `tools/list` over stdio with the same 39 tools,
  *    once with SEGNALS_API_KEY and once with an accounts file of two keys
  * 4. dist/index.js sends the server instructions and lists the resource template
  *    segnals://settings/{engine} with its four engines
@@ -23,7 +23,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SegnalsClient } from "../src/client.js";
 import { registerAllTools } from "../src/tools/index.js";
 
-const EXPECTED_TOOL_COUNT = 41;
+const EXPECTED_TOOL_COUNT = 39;
 const BUILT_SERVER = "dist/index.js";
 const DUMMY_KEY = "sk_live_smoketest00000000";
 

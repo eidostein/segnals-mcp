@@ -37,10 +37,10 @@ describe("Tool registry", () => {
     expect(tools.filter((tool) => /coming\s+soon|not\s+yet\s+available/i.test(tool.description))).toEqual([]);
   });
 
-  it("registers exactly the 41 tools the capabilities catalog names", () => {
+  it("registers exactly the 39 tools the capabilities catalog names", () => {
     const names = registeredTools().map((tool) => tool.name);
 
-    expect(names).toHaveLength(41);
+    expect(names).toHaveLength(39);
     expect(new Set(names).size).toBe(names.length);
     expect([...names].sort()).toEqual(TOOL_CATALOG.map((tool) => tool.name).sort());
   });

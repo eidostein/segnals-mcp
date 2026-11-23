@@ -22,7 +22,6 @@ When a user asks what Segnals is, use this:
 - ✅ Copy strategies from the marketplace (free or paid)
 - ✅ Publish your strategies to the marketplace
 - ✅ Configure indicator filters (ADX, RSI, EMA, ATR)
-- ✅ Control copy trading (start/stop per exchange)
 - ✅ Manage notification preferences
 
 ### What this MCP CANNOT do
@@ -253,8 +252,6 @@ The API key is a confidential credential. Never print, echo, log, or paste the u
 | "What's in the news?" | `segnals_get_news` |
 | "What's my subscription?" | `segnals_get_subscription` |
 | "Which exchanges am I connected to?" | `segnals_list_connections` |
-| "Show my copy trading setup" | `segnals_get_copy_trading` |
-| "Start copy trading on Bybit" | `segnals_control_copy_trading({ action: "start", exchange: "bybit" })` ✋ |
 | "Show my notification settings" | `segnals_get_notifications` |
 | "Turn on daily reports" | `segnals_set_notifications({ preferences: { daily_report: { enabled: true } } })` |
 | "Which settings does a Bybit bot have?" | `segnals_get_settings_catalog({ engine: "bybit" })` |
@@ -266,7 +263,7 @@ The API key is a confidential credential. Never print, echo, log, or paste the u
 
 ---
 
-## 7. Available Tools (41 total)
+## 7. Available Tools (39 total)
 
 Every tool takes `account`, the label of the account to act on. With one account it is
 optional; with several it is required, and the answer of a call without it lists the labels.
@@ -327,10 +324,6 @@ Every answer starts with the label it acted on. Never act on an account the user
 
 There is no tool for sentiment, live prices or help search, and the `read:knowledge`
 scope has no tool yet. If a user asks for one of these, say it is not available.
-
-### Copy Trading (`read:account` / `control:bots`)
-- `segnals_get_copy_trading` — copy trading config and status
-- `segnals_control_copy_trading` ✋ — start/stop copy trading (VIP)
 
 ### Notifications (`manage:notifications`)
 - `segnals_get_notifications` — notification preferences

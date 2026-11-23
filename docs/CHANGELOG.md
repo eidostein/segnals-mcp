@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `segnals_fleet_report` names what the report now carries (segnals-test #2379): `open_positions` and `unrealised_pnl` per bot, per fleet and in the totals, every symbol a bot trades, and that `trades` and `net_pnl` count closed trades only, so a bot can read trades 0 while it holds a position. The tool still passes the server's JSON through unchanged
 
+### Removed
+- `segnals_get_copy_trading` and `segnals_control_copy_trading`: copy trading is removed from Segnals (segnals-test #2094), and the `/api/copy-trading/*` routes they called answer 404. Copying a marketplace strategy (`segnals_copy_strategy`) is a different feature and stays. The server has 39 tools
+
 ## [0.2.0] — 2026-11-19
 
 ### Added

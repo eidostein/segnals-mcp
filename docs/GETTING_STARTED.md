@@ -31,7 +31,7 @@ with a free account — read-only MCP tools work on all tiers.
 | `read:stats` | Dashboard, PnL, performance, trades | Everyone |
 | `read:bots` | Bot list, config, logs, strategy schema | Everyone |
 | `write:bots` | Create, update, delete bots | Bot management |
-| `control:bots` | Start, stop, restart bots; copy trading | Active trading |
+| `control:bots` | Start, stop, restart bots | Active trading |
 | `write:strategies` | Create strategies with full config | Strategy building |
 | `read:marketplace` | Browse marketplace listings | Exploring |
 | `write:marketplace` | Copy and publish strategies | Marketplace users |
@@ -135,6 +135,6 @@ accounts there trade real money. Treat a staging key like a production key.
 ## Next Steps
 
 - [Authentication](AUTHENTICATION.md) — scopes, rotation, security
-- [Tools Reference](TOOLS.md) — all 41 tools with examples
+- [Tools Reference](TOOLS.md) — all 39 tools with examples
 - [Safety](SAFETY.md) — what the MCP can and cannot do
 - [Troubleshooting](TROUBLESHOOTING.md) — common errors and fixes
