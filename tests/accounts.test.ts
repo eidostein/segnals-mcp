@@ -106,14 +106,15 @@ describe("Several accounts", () => {
     const client = await connect();
     const { tools } = await client.listTools();
 
-    // The walk covers the registry: every tool the catalog names, the 33 included.
+    // The walk covers the registry: every tool the catalog names, the 31 of 0.1.1 included.
     expect(tools.map((tool) => tool.name).sort()).toEqual(TOOL_CATALOG.map((tool) => tool.name).sort());
     const walked = tools.filter((tool) => tool.name !== LISTS_ACCOUNTS);
     expect(walked).toHaveLength(TOOL_CATALOG.length - 1);
-    // The 33 tools of 0.1.1 and the seven SPEC 453 tools that act on one account: the fleet reads
-    // segnals_get_settings_catalog, segnals_get_fleet and segnals_fleet_report, and the plan tools
-    // segnals_plan_fleet, segnals_get_fleet_plan, segnals_apply_fleet_plan and segnals_stop_all_fleet.
-    expect(walked).toHaveLength(33 + 7);
+    // The 31 remaining tools of 0.1.1 (its two copy trading tools are gone) and the seven SPEC 453
+    // tools that act on one account: the fleet reads segnals_get_settings_catalog, segnals_get_fleet
+    // and segnals_fleet_report, and the plan tools segnals_plan_fleet, segnals_get_fleet_plan,
+    // segnals_apply_fleet_plan and segnals_stop_all_fleet.
+    expect(walked).toHaveLength(31 + 7);
 
     for (const tool of walked) {
       const account = (tool.inputSchema as JsonSchema & { properties: Record<string, { description?: string }> })

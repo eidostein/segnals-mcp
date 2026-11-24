@@ -29,44 +29,6 @@
     }
   },
   {
-    "name": "segnals_control_copy_trading",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "action": {
-          "type": "string",
-          "enum": [
-            "start",
-            "stop"
-          ],
-          "description": "Action: start or stop copy trading"
-        },
-        "exchange": {
-          "type": "string",
-          "enum": [
-            "bybit",
-            "phemex"
-          ],
-          "description": "Exchange to control copy trading for"
-        },
-        "confirm": {
-          "default": false,
-          "description": "Set to true to execute after previewing",
-          "type": "boolean"
-        },
-        "account": {
-          "description": "The account to act on. Optional: this program holds one account, \"default\".",
-          "type": "string"
-        }
-      },
-      "required": [
-        "action",
-        "exchange"
-      ],
-      "$schema": "http://json-schema.org/draft-07/schema#"
-    }
-  },
-  {
     "name": "segnals_copy_strategy",
     "inputSchema": {
       "type": "object",
@@ -306,19 +268,6 @@
   },
   {
     "name": "segnals_get_capabilities",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "account": {
-          "description": "The account to act on. Optional: this program holds one account, \"default\".",
-          "type": "string"
-        }
-      },
-      "$schema": "http://json-schema.org/draft-07/schema#"
-    }
-  },
-  {
-    "name": "segnals_get_copy_trading",
     "inputSchema": {
       "type": "object",
       "properties": {

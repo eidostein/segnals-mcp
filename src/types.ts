@@ -89,11 +89,6 @@ export interface ConnectionStatus {
   telegram: boolean;
 }
 
-/** Copy trading status from GET /api/copy-trading/ */
-export interface CopyTradingStatus {
-  [key: string]: unknown;
-}
-
 /** Notification preferences from GET /api/user/notification-preferences */
 export interface NotificationPreferences {
   system_reminders?: boolean;

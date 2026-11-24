@@ -5,6 +5,10 @@
  * The snapshot `__snapshots__/tools-0.1.1.json` was written by this test on the code before the
  * fleet read tools existed (SPEC 453 S3 merged, S9 not started). A change to the name or input
  * schema of any of those tools fails here.
+ *
+ * 0.1.1 had 33 tools. Two of them, segnals_get_copy_trading and segnals_control_copy_trading,
+ * were removed with copy trading itself (segnals-test #2094: the `/api/copy-trading/*` routes are
+ * gone), and their entries were taken out of the snapshot. The other 31 stay unchanged.
  */
 
 import { describe, it, expect } from "vitest";
@@ -53,15 +57,17 @@ describe("tools/list", () => {
       .map((tool) => ({ name: tool.name, inputSchema: tool.inputSchema }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    expect(before).toHaveLength(33);
+    expect(before).toHaveLength(31);
     await expect(`${JSON.stringify(before, null, 2)}\n`).toMatchFileSnapshot("./__snapshots__/tools-0.1.1.json");
   });
 
-  it("answers the 33 tools of 0.1.1 plus the 8 tools of SPEC 453 (case 1)", async () => {
+  it("answers the 31 remaining tools of 0.1.1 plus the 8 tools of SPEC 453 (case 1)", async () => {
     const names = (await listTools()).map((tool) => tool.name);
 
     expect(SPEC_453_TOOLS).toHaveLength(8);
-    expect(names).toHaveLength(33 + 8);
+    expect(names).toHaveLength(31 + 8);
+    expect(names).not.toContain("segnals_get_copy_trading");
+    expect(names).not.toContain("segnals_control_copy_trading");
     expect(names.filter((name) => SPEC_453_TOOLS.includes(name)).sort()).toEqual([...SPEC_453_TOOLS].sort());
   });
 });

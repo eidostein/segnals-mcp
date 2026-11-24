@@ -18,7 +18,7 @@ Before changing any bot setting, read the settings catalog (`segnals_get_setting
 - [README.md](README.md): Project overview, quickstart, security stance, and configuration
 - [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md): Step-by-step onboarding guide
 - [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md): API keys, scopes, rotation, and security
-- [docs/TOOLS.md](docs/TOOLS.md): Complete reference for all 41 tools and the settings resource, with examples
+- [docs/TOOLS.md](docs/TOOLS.md): Complete reference for all 39 tools and the settings resource, with examples
 - [docs/SAFETY.md](docs/SAFETY.md): What the MCP can and cannot do, risk disclaimers
 - [docs/CONFIGURATION.md](docs/CONFIGURATION.md): Per-client setup (Claude Desktop, Claude Code, Cursor), with the Docker image or a build from source
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md): Common errors and fixes

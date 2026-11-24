@@ -23,7 +23,7 @@ will return `403 Forbidden` if the key lacks the required scope.
 | `read:stats` | Read | Dashboard, PnL, performance, trades |
 | `read:bots` | Read | Bot list, config, logs, strategy schema |
 | `write:bots` | Write | Create, update, delete bots |
-| `control:bots` | Control | Start, stop, restart bots; copy trading |
+| `control:bots` | Control | Start, stop, restart bots |
 | `write:strategies` | Write | Create strategies with full config |
 | `read:marketplace` | Read | Browse marketplace, view listings |
 | `write:marketplace` | Write | Copy and publish strategies |
